@@ -1254,6 +1254,8 @@ def render_consent_page():
 
     For scientific reasons, full details about the research purpose cannot be provided at this time.
     You will be **fully debriefed** after completing the study.
+
+    If you have any questions about our research, please contact our team member Hongfei Li (Email: hongfei.li@cuhk.edu.hk) from CUHK.
     """)
 
     agree = st.checkbox("I am at least 18 years old and I agree to participate in this study.")
