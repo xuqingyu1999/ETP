@@ -1243,7 +1243,7 @@ def render_consent_page():
     (e.g., business challenges or work–life balance issues). After reading the post, you will be asked
     to **write a brief comment as if replying in the thread** and then **answer several questions** about your reactions.
 
-    The study will take approximately **10–15 minutes**. There will be **no follow-up questionnaire**.
+    The study will take approximately **3–5 minutes**. There will be **no follow-up questionnaire**.
 
     Your participation is **voluntary**. You may stop participating at any time without penalty.
     All responses are **anonymous**, and no identifying information will be collected or reported.
