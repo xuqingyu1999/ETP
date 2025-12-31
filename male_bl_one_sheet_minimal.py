@@ -1618,8 +1618,8 @@ def survey_page():
 
     with st.form("survey_form"):
         # st.subheader("Manipulation check")
-        mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None, horizontal=True)
-        mc_topic = st.radio("The post was mainly about:", ["Work-life balance", "Business difficulty"], index=None, horizontal=True)
+        mc_gender = st.radio("**The entrepreneur in the post was:**", ["Female", "Male"], index=None, horizontal=True)
+        mc_topic = st.radio("**The post was mainly about:**", ["Work-life balance", "Business difficulty"], index=None, horizontal=True)
 
         # st.subheader("Attention checks")
         # st.markdown("**What is the fifth word in the following sentence:**")
@@ -1638,7 +1638,7 @@ def survey_page():
         #for site in ONLINE_SITES:
         for site in ['Social media']:
             online[site] = st.radio(site, ONLINE_SCALE, index=None, horizontal=True, key=f"online_{site}")
-
+        st.divider()
         # st.subheader("G-V congruity scale (1–7)")
         st.caption("1 = Strongly disagree, 7 = Strongly agree")
         gv1 = likert7("What this person talked about is common for men entrepreneurs in the venturing process.", "gv1")
@@ -1646,10 +1646,10 @@ def survey_page():
         gv3 = likert7("Men entrepreneurs are likely to experience what this person talked about in the venturing process.", "gv3")
 
         # st.subheader("Demographics")
-        birth_year = st.text_input("What is your birth year? (1960–2007)", placeholder="e.g., 1998")
-        gender = st.selectbox("What is your gender?", ["female", "male", "third gender", "transgender"], index=None, placeholder="Select…")
+        birth_year = st.text_input("**What is your birth year? **(1960–2007)", placeholder="e.g., 1998")
+        gender = st.selectbox("**What is your gender?**", ["female", "male", "third gender", "transgender"], index=None, placeholder="Select…")
         education = st.selectbox(
-            "What’s your highest level of formal education?",
+            "**What’s your highest level of formal education?**",
             [
                 "High school degree or below",
                 "Associated or technical degree",
@@ -1660,8 +1660,8 @@ def survey_page():
             index=None,
             placeholder="Select…",
         )
-        ent_years = st.text_input("How many years of entrepreneurial experience do you have? (0–50)", placeholder="e.g., 3")
-        work_years = st.text_input("How many years of work experience do you have? (0–50)", placeholder="e.g., 10")
+        ent_years = st.text_input("**How many years of entrepreneurial experience do you have?** (0–50)", placeholder="e.g., 3")
+        work_years = st.text_input("**How many years of work experience do you have?** (0–50)", placeholder="e.g., 10")
 
         submit = st.form_submit_button("Submit survey")
 
