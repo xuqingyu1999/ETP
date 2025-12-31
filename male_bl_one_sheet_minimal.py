@@ -1271,33 +1271,11 @@ def render_consent_page():
             st.warning(f"Please wait {remaining}s before continuing.")
             return
         if agree:
-            st.session_state.stage = "pid"
+            st.session_state.stage = "practice"
             st.rerun()
         else:
             st.warning("You must agree to participate before continuing.")
-# =============================================================================
-# PID PAGE
-# =============================================================================
-def pid_page():
-    render_banner()
-    st.title("Welcome!")
-    st.markdown("Please enter your **Prolific ID** to begin.")
 
-    prefill = get_query_param("PROLIFIC_PID") or ""
-    pid = st.text_input("Prolific ID", value=prefill)
-
-    if st.button("Confirm"):
-        pid_clean = (pid or "").strip()
-        if not pid_clean:
-            st.error("Please enter your Prolific ID.")
-            return
-
-        st.session_state.prolific_id = pid_clean
-        log_event("session_start", payload={"pid": pid_clean, "session_id": st.session_state.session_id})
-        st.session_state.stage = "practice"
-        st.rerun()
-
-    # render_debug_box()
 
 # =============================================================================
 # ATTENTION CHECK PAGE (2 att questions)
@@ -1367,9 +1345,35 @@ def practice_questions_page():
         #     return
 
         # ✅ Passed → go to experiments
-        st.session_state.stage = "experiment"
+        st.session_state.stage = "pid"
         st.session_state.scroll_top_next = True  # if you use the scroll-to-top flag
         st.rerun()
+        
+# =============================================================================
+# PID PAGE
+# =============================================================================
+def pid_page():
+    render_banner()
+    st.title("Welcome!")
+    st.markdown("Please enter your **Prolific ID** to begin.")
+
+    prefill = get_query_param("PROLIFIC_PID") or ""
+    pid = st.text_input("Prolific ID", value=prefill)
+
+    if st.button("Confirm"):
+        pid_clean = (pid or "").strip()
+        if not pid_clean:
+            st.error("Please enter your Prolific ID.")
+            return
+
+        st.session_state.prolific_id = pid_clean
+        log_event("session_start", payload={"pid": pid_clean, "session_id": st.session_state.session_id})
+        st.session_state.stage = "experiment"
+        st.rerun()
+
+    # render_debug_box()
+
+
 
 # =============================================================================
 # EXPERIMENT PAGE (post + vote + comment)
@@ -1616,15 +1620,15 @@ def survey_page():
         mc_topic = st.radio("The post was mainly about:", ["Work-life balance", "Business difficulty"], index=None, horizontal=True)
 
         # st.subheader("Attention checks")
-        st.markdown("**What is the fifth word in the following sentence:**")
-        st.markdown(f"> {ATTENTION_CHECK_1_SENTENCE}")
-        att1 = st.radio("", ATTENTION_CHECK_1_OPTIONS, index=None, horizontal=True, label_visibility="collapsed")
-        att2 = st.radio(
-            "What is your favorite fruit? Please select Orange to show that you are paying attention to this question.",
-            ATTENTION_CHECK_2_OPTIONS,
-            index=None,
-            horizontal=True,
-        )
+        # st.markdown("**What is the fifth word in the following sentence:**")
+        # st.markdown(f"> {ATTENTION_CHECK_1_SENTENCE}")
+        # att1 = st.radio("", ATTENTION_CHECK_1_OPTIONS, index=None, horizontal=True, label_visibility="collapsed")
+        # att2 = st.radio(
+        #     "What is your favorite fruit? Please select Orange to show that you are paying attention to this question.",
+        #     ATTENTION_CHECK_2_OPTIONS,
+        #     index=None,
+        #     horizontal=True,
+        # )
 
         # st.subheader("Online activity")
         online = {}
