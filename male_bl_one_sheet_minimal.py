@@ -1646,7 +1646,7 @@ def survey_page():
         gv3 = likert7("Men entrepreneurs are likely to experience what this person talked about in the venturing process.", "gv3")
 
         # st.subheader("Demographics")
-        birth_year = st.text_input("**What is your birth year? **(1960–2007)", placeholder="e.g., 1998")
+        birth_year = st.text_input("**What is your birth year?** (1960–2007)", placeholder="e.g., 1998")
         gender = st.selectbox("**What is your gender?**", ["female", "male", "third gender", "transgender"], index=None, placeholder="Select…")
         education = st.selectbox(
             "**What’s your highest level of formal education?**",
