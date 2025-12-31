@@ -1634,8 +1634,9 @@ def survey_page():
 
         # st.subheader("Online activity")
         online = {}
-        st.markdown("**How much do you use the following sites, apps, services, or games to connect or interact with other people?**")
-        for site in ONLINE_SITES:
+        st.markdown("**How much do you use social media (such as Facebook, Instagram, or X) to connect or interact with other people?**")
+        #for site in ONLINE_SITES:
+        for site in ['Social media']:
             online[site] = st.radio(site, ONLINE_SCALE, index=None, horizontal=True, key=f"online_{site}")
 
         # st.subheader("G-V congruity scale (1–7)")
