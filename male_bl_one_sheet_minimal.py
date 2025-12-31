@@ -1690,7 +1690,8 @@ def survey_page():
     ]:
         if blank(val):
             missing.append(label)
-    for site in ONLINE_SITES:
+    # for site in ONLINE_SITES:
+    for site in ["Social media"]:
         if blank(online.get(site)):
             missing.append(f"Online: {site}")
     if missing:
