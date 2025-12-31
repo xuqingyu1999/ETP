@@ -613,7 +613,7 @@ def experiment_page():
             height=180,
             placeholder=(
                 "Minimum 50 words.\n"
-                "Tip: How would you comment on Maria’s thread about his business difficulties?"
+                "Tip: How would you comment on Maria’s thread about her business difficulties?"
             ),
             help="You must write at least 50 words before submitting."
         )
@@ -812,7 +812,7 @@ def survey_page():
             "Women entrepreneurs are likely to experience what this person talked about in the venturing process.", "gv3")
 
         # st.subheader("Demographics")
-        birth_year = st.text_input("**What is your birth year? **(1960–2007)", placeholder="e.g., 1998")
+        birth_year = st.text_input("**What is your birth year?** (1960–2007)", placeholder="e.g., 1998")
         gender = st.selectbox("**What is your gender?**", ["female", "male", "third gender", "transgender"], index=None,
                               placeholder="Select…")
         education = st.selectbox(
