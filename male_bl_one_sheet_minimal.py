@@ -1720,8 +1720,8 @@ def survey_page():
         return
 
     # compute correctness flags
-    att1_ok = (att1 == ATTENTION_CHECK_1_CORRECT)
-    att2_ok = (att2 == ATTENTION_CHECK_2_CORRECT)
+    # att1_ok = (att1 == ATTENTION_CHECK_1_CORRECT)
+    # att2_ok = (att2 == ATTENTION_CHECK_2_CORRECT)
     mc_gender_ok = (mc_gender == "Male")
     mc_topic_ok = (mc_topic == "Business difficulty")
 
@@ -1733,12 +1733,12 @@ def survey_page():
             "gender_correct": mc_gender_ok,
             "topic_correct": mc_topic_ok,
         },
-        "attention_checks": {
-            "att1_answer": att1,
-            "att1_correct": att1_ok,
-            "att2_answer": att2,
-            "att2_correct": att2_ok,
-        },
+        # "attention_checks": {
+        #     "att1_answer": att1,
+        #     "att1_correct": att1_ok,
+        #     "att2_answer": att2,
+        #     "att2_correct": att2_ok,
+        # },
         "online_activity": online,
         "gv": {"gv1": gv1, "gv2": gv2, "gv3": gv3},
         "demographics": {
