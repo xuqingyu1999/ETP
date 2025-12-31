@@ -1643,7 +1643,7 @@ def survey_page():
         gv3 = likert7("Men entrepreneurs are likely to experience what this person talked about in the venturing process.", "gv3")
 
         # st.subheader("Demographics")
-        birth_year = st.text_input("What is your birth year? (1960–2005)", placeholder="e.g., 1998")
+        birth_year = st.text_input("What is your birth year? (1960–2007)", placeholder="e.g., 1998")
         gender = st.selectbox("What is your gender?", ["female", "male", "third gender", "transgender"], index=None, placeholder="Select…")
         education = st.selectbox(
             "What’s your highest level of formal education?",
@@ -1698,7 +1698,7 @@ def survey_page():
     errs = []
     try:
         by = int(str(birth_year).strip())
-        if by < 1960 or by > 2005:
+        if by < 1960 or by > 2007:
             errs.append("Birth year must be 1960–2007")
     except Exception:
         errs.append("Birth year must be an integer")
