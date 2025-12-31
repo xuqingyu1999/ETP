@@ -18,20 +18,20 @@
 # #      fallback_event_log.csv (UTF-8) and show the error in a small
 # #      “Debug” expander.
 
-# import base64
-# import csv
-# import json
-# import os
-# import time
-# import uuid
-# from datetime import datetime, timezone
-# from pathlib import Path
-# from typing import Any, Dict, List, Optional
+import base64
+import csv
+import json
+import os
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-# import streamlit as st
+import streamlit as st
 
-# import gspread
-# from oauth2client.service_account import ServiceAccountCredentials
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # # =============================================================================
 # # EXPERIMENT SETTINGS (Male BL)
