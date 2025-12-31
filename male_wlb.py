@@ -615,7 +615,7 @@ def experiment_page():
             height=180,
             placeholder=(
                 "Minimum 50 words.\n"
-                "Tip: How would you comment on David’s thread about his work life balance?"
+                "Tip: How would you comment on David’s thread about his work life balance difficulties?"
             ),
             help="You must write at least 50 words before submitting."
         )
