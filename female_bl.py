@@ -1051,22 +1051,22 @@ def survey_page():
         st.divider()
         st.caption("1 = Strongly disagree, 7 = Strongly agree")
 
-        st.markdown("**Perceived identity threat**")
+        # st.markdown("**Perceived identity threat**")
         threat_vals = []
         for i, item in enumerate(IDENTITY_THREAT_ITEMS, start=1):
             threat_vals.append(likert7_row(item, key=f"threat_{i}"))
 
-        st.markdown("**Perceived identity verification**")
+        # st.markdown("**Perceived identity verification**")
         verify_vals = []
         for i, item in enumerate(IDENTITY_VERIFICATION_ITEMS, start=1):
             verify_vals.append(likert7_row(item, key=f"verify_{i}"))
 
-        st.markdown("**Identity salience: entrepreneurial identity**")
+        st.divider()# st.markdown("**Identity salience: entrepreneurial identity**")
         ent_sal_vals = []
         for i, item in enumerate(ENTREPRENEUR_ID_SALIENCE_ITEMS, start=1):
             ent_sal_vals.append(likert7_row(item, key=f"ent_sal_{i}"))
-
-        st.markdown("**Identity salience: gender identity**")
+        
+        st.divider()# st.markdown("**Identity salience: gender identity**")
         gen_sal_vals = []
         for i, item in enumerate(GENDER_ID_SALIENCE_ITEMS, start=1):
             gen_sal_vals.append(likert7_row(item, key=f"gen_sal_{i}"))
@@ -1074,7 +1074,7 @@ def survey_page():
         st.divider()
 
         # ---- Existing questions (keep yours; below is a safe template) ----
-        st.divider()
+        # st.divider()
         st.caption("1 = Strongly disagree, 7 = Strongly agree")
 
         gv1 = likert7_row(
