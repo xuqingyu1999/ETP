@@ -476,10 +476,35 @@ def render_consent_page():
             st.warning(f"Please wait {remaining}s before continuing.")
             return
         if agree:
-            st.session_state.stage = "practice"
+            st.session_state.stage = "pid"
             st.rerun()
         else:
             st.warning("You must agree to participate before continuing.")
+
+# =============================================================================
+# PID PAGE
+# =============================================================================
+def pid_page():
+    render_banner()
+    st.title("Welcome!")
+    st.markdown("Please enter your **Prolific ID** to begin.")
+
+    prefill = get_query_param("PROLIFIC_PID") or ""
+    pid = st.text_input("Prolific ID", value=prefill)
+
+    if st.button("Confirm"):
+        pid_clean = (pid or "").strip()
+        if not pid_clean:
+            st.error("Please enter your Prolific ID.")
+            return
+
+        st.session_state.prolific_id = pid_clean
+        log_event("session_start", payload={"pid": pid_clean, "session_id": st.session_state.session_id})
+        st.session_state.stage = "practice"
+        st.session_state.scroll_top_next = True
+        st.rerun()
+
+    # render_debug_box()
 
 
 # =============================================================================
@@ -550,34 +575,11 @@ def practice_questions_page():
         #     return
 
         # ✅ Passed → go to experiments
-        st.session_state.stage = "pid"
+        st.session_state.stage = "experiment"
         st.session_state.scroll_top_next = True  # if you use the scroll-to-top flag
         st.rerun()
 
 
-# =============================================================================
-# PID PAGE
-# =============================================================================
-def pid_page():
-    render_banner()
-    st.title("Welcome!")
-    st.markdown("Please enter your **Prolific ID** to begin.")
-
-    prefill = get_query_param("PROLIFIC_PID") or ""
-    pid = st.text_input("Prolific ID", value=prefill)
-
-    if st.button("Confirm"):
-        pid_clean = (pid or "").strip()
-        if not pid_clean:
-            st.error("Please enter your Prolific ID.")
-            return
-
-        st.session_state.prolific_id = pid_clean
-        log_event("session_start", payload={"pid": pid_clean, "session_id": st.session_state.session_id})
-        st.session_state.stage = "experiment"
-        st.rerun()
-
-    # render_debug_box()
 
 
 # =============================================================================
@@ -984,7 +986,7 @@ def survey_page():
         st.caption("Please answer all questions on this page to continue.")
 
         with st.form("survey_step1_form", clear_on_submit=False):
-            st.subheader("Post check")
+            st.divider()
 
             # Keep your existing manipulation check(s). Typical:
             mc_gender = st.radio(
@@ -1003,7 +1005,7 @@ def survey_page():
                 key="mc_topic_step1",
             )
 
-            st.subheader("Post tone")
+            st.divider()
             st.caption("1 = Not at all, 7 = Very strongly")
             frustration = st.radio(
                 "To what extent does this post express frustrations and negative experiences?",
@@ -1046,7 +1048,7 @@ def survey_page():
     st.caption("Please answer all questions on this page before submitting.")
 
     with st.form("survey_step2_form", clear_on_submit=False):
-        st.subheader("Perceptions and identity")
+        st.divider()
         st.caption("1 = Strongly disagree, 7 = Strongly agree")
 
         st.markdown("**Perceived identity threat**")
@@ -1072,7 +1074,7 @@ def survey_page():
         st.divider()
 
         # ---- Existing questions (keep yours; below is a safe template) ----
-        st.subheader("G‑V congruity")
+        st.divider()
         st.caption("1 = Strongly disagree, 7 = Strongly agree")
 
         gv1 = likert7_row(
@@ -1088,7 +1090,7 @@ def survey_page():
             key="gv3",
         )
 
-        st.subheader("Demographics")
+        st.divider()
         birth_year = st.selectbox(
             "What is your birth year?",
             list(range(1960, 2006)),
