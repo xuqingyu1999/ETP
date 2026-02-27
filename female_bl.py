@@ -1075,22 +1075,22 @@ def survey_page():
 
         # ---- Existing questions (keep yours; below is a safe template) ----
         # st.divider()
-        st.caption("1 = Strongly disagree, 7 = Strongly agree")
+        # st.caption("1 = Strongly disagree, 7 = Strongly agree")
 
-        gv1 = likert7_row(
-            "What this person talked about is common for male entrepreneurs in the venturing process.",
-            key="gv1",
-        )
-        gv2 = likert7_row(
-            "It is common for male entrepreneurs to experience what this person talked about in the venturing process.",
-            key="gv2",
-        )
-        gv3 = likert7_row(
-            "Male entrepreneurs are likely to experience what this person talked about in the venturing process.",
-            key="gv3",
-        )
+        # gv1 = likert7_row(
+        #     "What this person talked about is common for male entrepreneurs in the venturing process.",
+        #     key="gv1",
+        # )
+        # gv2 = likert7_row(
+        #     "It is common for male entrepreneurs to experience what this person talked about in the venturing process.",
+        #     key="gv2",
+        # )
+        # gv3 = likert7_row(
+        #     "Male entrepreneurs are likely to experience what this person talked about in the venturing process.",
+        #     key="gv3",
+        # )
 
-        st.divider()
+        # st.divider()
         birth_year = st.selectbox(
             "What is your birth year?",
             list(range(1960, 2006)),
