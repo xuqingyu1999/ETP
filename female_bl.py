@@ -917,7 +917,7 @@ def survey_page():
         st.caption("Please answer all questions on this page to continue.")
 
         with st.form("survey_p2", clear_on_submit=False):
-            mc_gender = st.radio("**The entrepreneur in the post was:**", ["Female", "Male"], index=None,
+            mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
                                  horizontal=True)
             mc_topic = st.radio(
                 "The post was mainly about:",
