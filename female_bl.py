@@ -817,280 +817,210 @@ def likert7(question: str, key: str) -> Optional[int]:
     return st.radio("", options=[1, 2, 3, 4, 5, 6, 7], horizontal=True, index=None, key=key,
                     label_visibility="collapsed")
 
+LIKERT_1_7 = [1, 2, 3, 4, 5, 6, 7]
 
-# def survey_page():
-#     render_banner()
-#     if st.session_state.pop("scroll_top_next", False):
-#         scroll_to_top_once()
-#     st.title("Survey")
-#     st.caption("Please answer all questions.")
-#
-#     with st.form("survey_form"):
-#         # st.subheader("Manipulation check")
-#         mc_gender = st.radio("**The entrepreneur in the post was:**", ["Female", "Male"], index=None, horizontal=True)
-#         mc_topic = st.radio("**The post was mainly about:**", ["Work-life balance", "Business difficulty"], index=None,
-#                             horizontal=True)
-#
-#
-#         online = {}
-#         st.markdown(
-#             "**How much do you use social media (such as Facebook, Instagram, or X) to connect or interact with other people?**")
-#         # for site in ONLINE_SITES:
-#         for site in ['Social media']:
-#             online[site] = st.radio(site, ONLINE_SCALE, index=None, horizontal=True, key=f"online_{site}")
-#         st.divider()
-#         # st.subheader("G-V congruity scale (1–7)")
-#         st.caption("1 = Strongly disagree, 7 = Strongly agree")
-#         gv1 = likert7("What this person talked about is common for women entrepreneurs in the venturing process.", "gv1")
-#         gv2 = likert7(
-#             "It is common for women entrepreneurs to experience what this person talked about in the venturing process.",
-#             "gv2")
-#         gv3 = likert7(
-#             "Women entrepreneurs are likely to experience what this person talked about in the venturing process.", "gv3")
-#
-#         # st.subheader("Demographics")
-#         birth_year = st.text_input("**What is your birth year? **(1960–2007)", placeholder="e.g., 1998")
-#         gender = st.selectbox("**What is your gender?**", ["female", "male", "third gender", "transgender"], index=None,
-#                               placeholder="Select…")
-#         education = st.selectbox(
-#             "**What’s your highest level of formal education?**",
-#             [
-#                 "High school degree or below",
-#                 "Associated or technical degree",
-#                 "Bachelor degree",
-#                 "Master degree",
-#                 "Doctorate degree",
-#             ],
-#             index=None,
-#             placeholder="Select…",
-#         )
-#         ent_years = st.text_input("**How many years of entrepreneurial experience do you have?** (0–50)",
-#                                   placeholder="e.g., 3")
-#         work_years = st.text_input("**How many years of work experience do you have?** (0–50)", placeholder="e.g., 10")
-#
-#         submit = st.form_submit_button("Submit survey")
-#
-#     if not submit:
-#         # render_debug_box()
-#         return
-#
-#     # ---- validation ----
-#     def blank(x: Any) -> bool:
-#         return x is None or (isinstance(x, str) and x.strip() == "")
-#
-#     missing = []
-#     for label, val in [
-#         ("MC gender", mc_gender),
-#         ("MC topic", mc_topic),
-#         # ("Attention check 1", att1),
-#         # ("Attention check 2", att2),
-#         ("GV1", gv1),
-#         ("GV2", gv2),
-#         ("GV3", gv3),
-#         ("Birth year", birth_year),
-#         ("Gender", gender),
-#         ("Education", education),
-#         ("Entrepreneurial years", ent_years),
-#         ("Work years", work_years),
-#     ]:
-#         if blank(val):
-#             missing.append(label)
-#     # for site in ONLINE_SITES:
-#     for site in ["Social media"]:
-#         if blank(online.get(site)):
-#             missing.append(f"Online: {site}")
-#     if missing:
-#         st.error("Please complete all required questions: " + ", ".join(missing))
-#         return
-#
-#     # numeric checks
-#     errs = []
-#     try:
-#         by = int(str(birth_year).strip())
-#         if by < 1960 or by > 2007:
-#             errs.append("Birth year must be 1960–2007")
-#     except Exception:
-#         errs.append("Birth year must be an integer")
-#     try:
-#         ey = int(str(ent_years).strip())
-#         if ey < 0 or ey > 50:
-#             errs.append("Entrepreneurial experience must be 0–50")
-#     except Exception:
-#         errs.append("Entrepreneurial experience must be an integer")
-#     try:
-#         wy = int(str(work_years).strip())
-#         if wy < 0 or wy > 50:
-#             errs.append("Work experience must be 0–50")
-#     except Exception:
-#         errs.append("Work experience must be an integer")
-#     if errs:
-#         for e in errs:
-#             st.error(e)
-#         return
-#
-#     # compute correctness flags
-#     # att1_ok = (att1 == ATTENTION_CHECK_1_CORRECT)
-#     # att2_ok = (att2 == ATTENTION_CHECK_2_CORRECT)
-#     mc_gender_ok = (mc_gender == "Female")
-#     mc_topic_ok = (mc_topic == "Business difficulty")
-#
-#     responses = {
-#         "condition": CONDITION,
-#         "manipulation_check": {
-#             "gender_answer": mc_gender,
-#             "topic_answer": mc_topic,
-#             "gender_correct": mc_gender_ok,
-#             "topic_correct": mc_topic_ok,
-#         },
-#         # "attention_checks": {
-#         #     "att1_answer": att1,
-#         #     "att1_correct": att1_ok,
-#         #     "att2_answer": att2,
-#         #     "att2_correct": att2_ok,
-#         # },
-#         "online_activity": online,
-#         "gv": {"gv1": gv1, "gv2": gv2, "gv3": gv3},
-#         "demographics": {
-#             "birth_year": by,
-#             "gender": gender,
-#             "education": education,
-#             "entrepreneurial_years": ey,
-#             "work_years": wy,
-#         },
-#         "comment_count": len(st.session_state.comments),
-#         # "final_vote_score": st.session_state.vote_count,
-#         # "final_user_vote": st.session_state.user_vote,
-#     }
-#
-#     # ✅ Minimal logging: log survey only
-#     log_event("survey_submitted", title="survey", payload=responses)
-#
-#     st.session_state.stage = "done"
-#     st.rerun()
+ESS_ITEMS = [
+    "Online, I would pay attention to this thread.",
+    "Online, I would like to say things to make him/her feel good.",
+    "Online, I would like to leave him/her positive comments.",
+    "Online, I would like to show my care about him/her.",
+    "Online, I would like to show my interests in this post.",
+    "Online, I would like to show support to him/her.",
+    "Online, I would like to give him/her likes, favorites, upvotes, views, etc.",
+    "Online, I would like to encourage him/her.",
+    "Online, I would like to tell him/her I like the things he/she says or does.",
+    "Online, I would like to make him/her feel good about himself/herself.",
+]
+
+ISS_ITEMS = [
+    "Online, I would like to provide him/her with helpful information.",
+    "Online, I would like to help him/her by saying what I would do.",
+    "Online, I would tell him/her where to find help.",
+    "Online, I would like to offer suggestions to him/her.",
+    "Online, I would like to tell him/her things he/she want to know.",
+    "Online, I would like to help him/her understand his/her situation better.",
+    "Online, I would like to share my point of view with him/her.",
+    "Online, I would like to help him/her see things in new ways.",
+    "Online, I would like to give him/her useful advice.",
+    "Online, I would like to help him/her by saying what he/she would do.",
+]
+
 
 def survey_page():
     render_banner()
 
-    # Optional: scroll to top when entering / switching pages
+    # Scroll to top when entering this page or switching between survey pages
     if st.session_state.pop("scroll_top_next", False):
         scroll_to_top_once()
 
-    st.session_state.setdefault("survey_step", 1)     # 1 or 2
-    st.session_state.setdefault("survey_answers", {}) # store answers across steps
+    st.session_state.setdefault("survey_step", 1)      # 1, 2, 3
+    st.session_state.setdefault("survey_answers", {})  # cumulative across pages
 
     # -------------------------
-    # PAGE 1: manipulation + frustration intensity
+    # PAGE 1/3: ESS + ISS
     # -------------------------
     if st.session_state.survey_step == 1:
-        st.title("Survey (1/2)")
-        st.caption("Please answer all questions on this page to continue.")
+        st.title("Survey (1/3)")
+        st.markdown("This page asks your opinion about the thread you just read.")
+        st.caption("Scale: 1 = Strongly disagree, 7 = Strongly agree")
 
-        with st.form("survey_step1_form", clear_on_submit=False):
+        with st.form("survey_p1", clear_on_submit=False):
+            ess_vals = {}
+            for i, item in enumerate(ESS_ITEMS, start=1):
+                key = f"ESS{i}"
+                ess_vals[key] = st.radio(
+                    f"{i}. {item}",
+                    options=LIKERT_1_7,
+                    index=None,
+                    horizontal=True,
+                    key=key,
+                )
+
             st.divider()
 
-            # Keep your existing manipulation check(s). Typical:
-            mc_gender = st.radio(
-                "The entrepreneur in the post was:",
-                ["Female", "Male"],
-                index=None,
-                horizontal=True,
-                key="mc_gender_step1",
-            )
+            iss_vals = {}
+            for i, item in enumerate(ISS_ITEMS, start=1):
+                key = f"ISS{i}"
+                iss_vals[key] = st.radio(
+                    f"{10+i}. {item}",
+                    options=LIKERT_1_7,
+                    index=None,
+                    horizontal=True,
+                    key=key,
+                )
 
+            next_btn = st.form_submit_button("Next")
+
+        if next_btn:
+            combined = {**ess_vals, **iss_vals}
+            missing = [k for k, v in combined.items() if v is None]
+            if missing:
+                st.error("Please answer all questions on this page before continuing.")
+                return
+
+            # Save + log page 1
+            st.session_state.survey_answers.update(combined)
+            log_event("survey_page1_complete", title="survey_p1", payload=combined)
+
+            st.session_state.survey_step = 2
+            st.session_state.scroll_top_next = True
+            st.rerun()
+
+        return
+
+    # -------------------------
+    # PAGE 2/3: Manipulation + frustration
+    # -------------------------
+    if st.session_state.survey_step == 2:
+        st.title("Survey (2/3)")
+        st.caption("Please answer all questions on this page to continue.")
+
+        with st.form("survey_p2", clear_on_submit=False):
             mc_topic = st.radio(
                 "The post was mainly about:",
                 ["Work-life balance", "Business difficulty"],
                 index=None,
                 horizontal=True,
-                key="mc_topic_step1",
+                key="mc_topic",
             )
 
             st.divider()
-            st.caption("1 = Not at all, 7 = Very strongly")
+
+            st.caption("Scale: 1 = Not at all, 7 = Very strongly")
             frustration = st.radio(
                 "To what extent does this post express frustrations and negative experiences?",
                 options=LIKERT_1_7,
                 index=None,
                 horizontal=True,
-                key="frustration_step1",
+                key="frustration_strength",
             )
 
             next_btn = st.form_submit_button("Next")
 
         if next_btn:
-            missing = []
-            if _is_blank(mc_gender): missing.append("The entrepreneur in the post was")
-            if _is_blank(mc_topic): missing.append("The post was mainly about")
-            if _is_blank(frustration): missing.append("Frustrations / negative experiences")
-
-            if missing:
-                st.error("Please complete: " + ", ".join(missing))
+            if mc_topic is None or frustration is None:
+                st.error("Please answer all questions on this page before continuing.")
                 return
 
-            # Save step 1 answers
-            st.session_state.survey_answers.update({
-                "mc_gender": mc_gender,
+            page2 = {
                 "mc_topic": mc_topic,
                 "frustration_strength": frustration,
-            })
+            }
+            st.session_state.survey_answers.update(page2)
+            log_event("survey_page2_complete", title="survey_p2", payload=page2)
 
-            # Go to page 2
-            st.session_state.survey_step = 2
+            st.session_state.survey_step = 3
             st.session_state.scroll_top_next = True
             st.rerun()
 
-        return  # stop here for step 1
+        return
 
     # -------------------------
-    # PAGE 2: identity scales + existing questions
+    # PAGE 3/3: Identity scales + demographics (GV removed)
     # -------------------------
-    st.title("Survey (2/2)")
-    st.caption("Please answer all questions on this page before submitting.")
+    st.title("Survey (3/3)")
+    st.caption("Scale: 1 = Strongly disagree, 7 = Strongly agree")
 
-    with st.form("survey_step2_form", clear_on_submit=False):
-        st.divider()
-        st.caption("1 = Strongly disagree, 7 = Strongly agree")
-
-        # st.markdown("**Perceived identity threat**")
-        threat_vals = []
-        for i, item in enumerate(IDENTITY_THREAT_ITEMS, start=1):
-            threat_vals.append(likert7_row(item, key=f"threat_{i}"))
-
-        # st.markdown("**Perceived identity verification**")
-        verify_vals = []
-        for i, item in enumerate(IDENTITY_VERIFICATION_ITEMS, start=1):
-            verify_vals.append(likert7_row(item, key=f"verify_{i}"))
-
-        st.divider()# st.markdown("**Identity salience: entrepreneurial identity**")
-        ent_sal_vals = []
-        for i, item in enumerate(ENTREPRENEUR_ID_SALIENCE_ITEMS, start=1):
-            ent_sal_vals.append(likert7_row(item, key=f"ent_sal_{i}"))
-        
-        st.divider()# st.markdown("**Identity salience: gender identity**")
-        gen_sal_vals = []
-        for i, item in enumerate(GENDER_ID_SALIENCE_ITEMS, start=1):
-            gen_sal_vals.append(likert7_row(item, key=f"gen_sal_{i}"))
+    with st.form("survey_p3", clear_on_submit=False):
+        # Identity Threat (PIT1–PIT4)
+        pit_items = [
+            "This post makes me feel that there is a negative value attached to my identity as an entrepreneur.",
+            "This post makes me feel that being an entrepreneur is viewed less positively.",
+            "This interaction makes me feel that the value of my entrepreneurial identity is being diminished.",
+            "This interaction makes me feel that others might see my entrepreneurial identity as less legitimate.",
+        ]
+        pit_vals = {}
+        for i, item in enumerate(pit_items, start=1):
+            key = f"PIT{i}"
+            pit_vals[key] = st.radio(item, options=LIKERT_1_7, index=None, horizontal=True, key=key)
 
         st.divider()
 
-        # ---- Existing questions (keep yours; below is a safe template) ----
-        # st.divider()
-        # st.caption("1 = Strongly disagree, 7 = Strongly agree")
+        # Identity Verification (PIV1–PIV4)
+        piv_items = [
+            "This post makes me feel more confident in my identity as an entrepreneur.",
+            "This interaction strengthens my sense of value in my role as an entrepreneur.",
+            "After this interaction, I feel my entrepreneurial identity is positively reinforced.",
+            "This post makes me feel recognized as a legitimate business owner.",
+        ]
+        piv_vals = {}
+        for i, item in enumerate(piv_items, start=1):
+            key = f"PIV{i}"
+            piv_vals[key] = st.radio(item, options=LIKERT_1_7, index=None, horizontal=True, key=key)
 
-        # gv1 = likert7_row(
-        #     "What this person talked about is common for male entrepreneurs in the venturing process.",
-        #     key="gv1",
-        # )
-        # gv2 = likert7_row(
-        #     "It is common for male entrepreneurs to experience what this person talked about in the venturing process.",
-        #     key="gv2",
-        # )
-        # gv3 = likert7_row(
-        #     "Male entrepreneurs are likely to experience what this person talked about in the venturing process.",
-        #     key="gv3",
-        # )
+        st.divider()
 
-        # st.divider()
+        # Entrepreneur identity salience (ES1–ES5)
+        es_items = [
+            "Being an entrepreneur is an important part of who I am.",
+            "I would feel a great sense of loss if I were forced to give up my entrepreneurial role.",
+            "I have very clear feelings about being an entrepreneur.",
+            "For me, being an entrepreneur is more than just a job; it is a vital part of my life.",
+            "I strongly identify with being an entrepreneur.",
+        ]
+        es_vals = {}
+        for i, item in enumerate(es_items, start=1):
+            key = f"ES{i}"
+            es_vals[key] = st.radio(item, options=LIKERT_1_7, index=None, horizontal=True, key=key)
+
+        st.divider()
+
+        # Gender identity salience (GS1–GS5)
+        gs_items = [
+            "I would feel like a significant part of me was missing if I could no longer identify with my gender.",
+            "My gender is an important part of my overall sense of self.",
+            "I have a very clear and defined sense of what my gender means to me.",
+            "My gender is a vital lens through which I experience and navigate my life.",
+            "I feel a strong sense of connection to the shared experiences associated with my gender.",
+        ]
+        gs_vals = {}
+        for i, item in enumerate(gs_items, start=1):
+            key = f"GS{i}"
+            gs_vals[key] = st.radio(item, options=LIKERT_1_7, index=None, horizontal=True, key=key)
+
+        st.divider()
+
+        # Demographics (required)
         birth_year = st.selectbox(
             "What is your birth year?",
             list(range(1960, 2006)),
@@ -1138,55 +1068,50 @@ def survey_page():
     if not submit_btn:
         return
 
-    # ---- Step 2 validation: everything required ----
+    # Validate Page 3 required items
     missing = []
-
-    # Identity scale items
-    for idx, v in enumerate(threat_vals, start=1):
-        if _is_blank(v): missing.append(f"Threat item {idx}")
-    for idx, v in enumerate(verify_vals, start=1):
-        if _is_blank(v): missing.append(f"Verification item {idx}")
-    for idx, v in enumerate(ent_sal_vals, start=1):
-        if _is_blank(v): missing.append(f"Entrepreneur identity salience item {idx}")
-    for idx, v in enumerate(gen_sal_vals, start=1):
-        if _is_blank(v): missing.append(f"Gender identity salience item {idx}")
-
-    # Existing
-    for label, val in [
-        ("GV1", gv1), ("GV2", gv2), ("GV3", gv3),
-        ("Birth year", birth_year),
-        ("Gender", gender),
-        ("Education", education),
-        ("Entrepreneurial experience", ent_years),
-        ("Work experience", work_years),
+    for d, label in [
+        (pit_vals, "PIT"),
+        (piv_vals, "PIV"),
+        (es_vals, "ES"),
+        (gs_vals, "GS"),
     ]:
-        if _is_blank(val):
-            missing.append(label)
+        for k, v in d.items():
+            if v is None:
+                missing.append(k)
+
+    for k, v in [
+        ("birth_year", birth_year),
+        ("demo_gender", gender),
+        ("education", education),
+        ("ent_years", ent_years),
+        ("work_years", work_years),
+    ]:
+        if v is None:
+            missing.append(k)
 
     if missing:
-        st.error("Please complete: " + ", ".join(missing))
+        st.error("Please answer all questions on this page before submitting.")
         return
 
-    # ---- Build final payload (includes Page 1 + Page 2) ----
-    responses = dict(st.session_state.survey_answers)  # Page 1 stored values
+    page3 = {
+        **pit_vals,
+        **piv_vals,
+        **es_vals,
+        **gs_vals,
+        "birth_year": birth_year,
+        "gender": gender,
+        "education": education,
+        "entrepreneurial_years": ent_years,
+        "work_years": work_years,
+    }
 
-    responses.update({
-        "condition": CONDITION,
-        "identity_threat": {f"it_{i+1}": v for i, v in enumerate(threat_vals)},
-        "identity_verification": {f"iv_{i+1}": v for i, v in enumerate(verify_vals)},
-        "identity_salience_entrepreneur": {f"es_{i+1}": v for i, v in enumerate(ent_sal_vals)},
-        "identity_salience_gender": {f"gs_{i+1}": v for i, v in enumerate(gen_sal_vals)},
-        "gv_congruity": {"gv1": gv1, "gv2": gv2, "gv3": gv3},
-        "demographics": {
-            "birth_year": birth_year,
-            "gender": gender,
-            "education": education,
-            "entrepreneurial_years": ent_years,
-            "work_years": work_years,
-        },
-    })
+    # Combine all pages
+    responses = dict(st.session_state.survey_answers)
+    responses.update(page3)
+    responses["condition"] = CONDITION
 
-    # ✅ Record survey to Google Sheet
+    # ✅ Final log (contains EVERYTHING)
     log_event("survey_submitted", title="survey", payload=responses)
 
     st.session_state.stage = "done"
