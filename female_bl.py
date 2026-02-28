@@ -537,8 +537,9 @@ def practice_questions_page():
         st.markdown("**What is the fifth word in the following sentence:**")
         st.markdown(f"> {ATTENTION_CHECK_1_SENTENCE}")
         att1 = st.radio("", ATTENTION_CHECK_1_OPTIONS, index=None, horizontal=True, label_visibility="collapsed")
+        st.divider()
         att2 = st.radio(
-            "What is your favorite fruit? Please select Orange to show that you are paying attention to this question.",
+            "**What is your favorite fruit? Please select Orange to show that you are paying attention to this question.**",
             ATTENTION_CHECK_2_OPTIONS,
             index=None,
             horizontal=True,
