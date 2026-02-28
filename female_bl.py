@@ -445,9 +445,7 @@ def render_consent_page():
     In this study, you will read a short post from a Reddit discussion thread in which an entrepreneur describes their experience
     (e.g., business challenges or work–life balance issues). After reading the post, you will be asked
     to **write a brief comment as if replying in the thread** and then **answer several questions** about your reactions. 
-    Please write your comment in your own words and **do not use any AI tools** 
-    to generate your response. Submissions **identified as AI-generated will not be eligible for the reward.**
-
+    
     The study will take approximately **3–5 minutes**. There will be **no follow-up questionnaire**.
 
     Your participation is **voluntary**. You may stop participating at any time without penalty.
@@ -667,7 +665,8 @@ def experiment_page():
             height=180,
             placeholder=(
                 "Minimum 50 words.\n"
-                "Tip: How would you comment on Maria’s thread about her business difficulties?"
+                "Tip: How would you comment on Maria’s thread about her business difficulties?\n"
+                "Note: Please write the comment independently, without using AI assistance. Responses that do not reflect independent effort may not qualify for the reward."
             ),
             help="You must write at least 50 words before submitting."
         )
