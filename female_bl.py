@@ -822,28 +822,28 @@ LIKERT_1_7 = [1, 2, 3, 4, 5, 6, 7]
 
 ESS_ITEMS = [
     "Online, I would pay attention to this thread.",
-    "Online, I would like to say things to make him/her feel good.",
-    "Online, I would like to leave him/her positive comments.",
-    "Online, I would like to show my care about him/her.",
+    "Online, I would like to say things to make her feel good.",
+    "Online, I would like to leave her positive comments.",
+    "Online, I would like to show my care about her.",
     "Online, I would like to show my interests in this post.",
-    "Online, I would like to show support to him/her.",
-    "Online, I would like to give him/her likes, favorites, upvotes, views, etc.",
-    "Online, I would like to encourage him/her.",
-    "Online, I would like to tell him/her I like the things he/she says or does.",
-    "Online, I would like to make him/her feel good about himself/herself.",
+    "Online, I would like to show support to her.",
+    "Online, I would like to give her likes, favorites, upvotes, views, etc.",
+    "Online, I would like to encourage her.",
+    "Online, I would like to tell her I like the things she says or does.",
+    "Online, I would like to make her feel good about herself.",
 ]
 
 ISS_ITEMS = [
-    "Online, I would like to provide him/her with helpful information.",
-    "Online, I would like to help him/her by saying what I would do.",
-    "Online, I would tell him/her where to find help.",
-    "Online, I would like to offer suggestions to him/her.",
-    "Online, I would like to tell him/her things he/she want to know.",
-    "Online, I would like to help him/her understand his/her situation better.",
-    "Online, I would like to share my point of view with him/her.",
-    "Online, I would like to help him/her see things in new ways.",
-    "Online, I would like to give him/her useful advice.",
-    "Online, I would like to help him/her by saying what he/she would do.",
+    "Online, I would like to provide her with helpful information.",
+    "Online, I would like to help her by saying what I would do.",
+    "Online, I would tell her where to find help.",
+    "Online, I would like to offer suggestions to her.",
+    "Online, I would like to tell her things she want to know.",
+    "Online, I would like to help her understand her situation better.",
+    "Online, I would like to share my point of view with her.",
+    "Online, I would like to help her see things in new ways.",
+    "Online, I would like to give her useful advice.",
+    "Online, I would like to help her by saying what she would do.",
 ]
 
 
@@ -917,6 +917,8 @@ def survey_page():
         st.caption("Please answer all questions on this page to continue.")
 
         with st.form("survey_p2", clear_on_submit=False):
+            mc_gender = st.radio("**The entrepreneur in the post was:**", ["Female", "Male"], index=None,
+                                 horizontal=True)
             mc_topic = st.radio(
                 "The post was mainly about:",
                 ["Work-life balance", "Business difficulty"],
@@ -939,11 +941,12 @@ def survey_page():
             next_btn = st.form_submit_button("Next")
 
         if next_btn:
-            if mc_topic is None or frustration is None:
+            if mc_gender is None or mc_topic is None or frustration is None:
                 st.error("Please answer all questions on this page before continuing.")
                 return
 
             page2 = {
+                "mc_gender": mc_gender,
                 "mc_topic": mc_topic,
                 "frustration_strength": frustration,
             }
