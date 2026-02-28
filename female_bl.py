@@ -444,7 +444,9 @@ def render_consent_page():
 
     In this study, you will read a short post from a Reddit discussion thread in which an entrepreneur describes their experience
     (e.g., business challenges or work–life balance issues). After reading the post, you will be asked
-    to **write a brief comment as if replying in the thread** and then **answer several questions** about your reactions.
+    to **write a brief comment as if replying in the thread** and then **answer several questions** about your reactions. 
+    Please write your comment in your own words and **do not use any AI tools** 
+    to generate your response. Submissions **identified as AI-generated will not be eligible for the reward.**
 
     The study will take approximately **3–5 minutes**. There will be **no follow-up questionnaire**.
 
@@ -639,7 +641,10 @@ def count_words(text: str) -> int:
 def experiment_page():
     render_banner()
 
-    st.markdown(f"**Below, you will read a thread posted by {POSTED_BY_NAME} on social media.**")
+    st.markdown(
+    f"<p style='font-size:22px; font-weight:bold;'>Below, you will read a thread posted by {POSTED_BY_NAME} on social media.</p>",
+    unsafe_allow_html=True
+)
     render_post_meta()
 
     st.title(POST_TITLE)
