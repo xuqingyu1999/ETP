@@ -57,9 +57,7 @@ My wife told me this on my birthday (yesterday) and I think – I need to improv
 
 A little bit of context. My wife and son had each bought presents for me about 2 weeks prior to my birthday and placed it around my home office. I use the office daily and did not even notice the gifts. Looking back now, they tried hinting and drawing my attention to the presents but as you guys know I was blinded by work. 
 
-My son got tired of the cat and mouse game and pointed the gifts out on my birthday. While opening the gift, my wife said you are chasing the things you want and fail to enjoy the things you have. She is right (she always is :)
-
-The funny part is that the gift she offered me was going to be my December bonus for achieving my quarterly goals. 
+My son got tired of the cat and mouse game and pointed the gifts out on my birthday. While opening the gift, my wife said you are chasing the things you want and fail to enjoy the things you have. She is right (she always is :) The funny part is that the gift she offered me was going to be my December bonus for achieving my quarterly goals. 
 
 Lesson learned: over the next year I want to structure some time to enjoy what I have. Starting with looking around my home office every time I use it. I don’t want to miss an early bonus again. :) My birthday wish for all of us is to **find the balance** between chasing our goals and enjoying the ones we have already achieved
 """.strip()
