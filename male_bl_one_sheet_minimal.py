@@ -662,7 +662,9 @@ def experiment_page():
             height=180,
             placeholder=(
                 "Minimum 50 words.\n"
-                "Tip: How would you comment on David’s thread about his business difficulties?"
+                "Tip: How would you comment on David’s thread about his business difficulties?\n"
+                "Note: Please write the comment independently, without using AI assistance. Responses that do not reflect independent effort may not qualify for the reward."
+
             ),
             help="You must write at least 50 words before submitting."
         )
