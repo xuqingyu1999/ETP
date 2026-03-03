@@ -48,7 +48,7 @@ CONDITION = "M_WLB"
 
 SUBREDDIT = "r/business"
 DAYS_AGO = 7
-AUTHOR_USERNAME = "Fit_Bet_1261"
+AUTHOR_USERNAME = "HiddenBadger74"
 POSTED_BY_NAME = "David"
 
 POST_TITLE = "My wife told me this on my birthday (yesterday) and I think – I need to improve my work-life balance."
