@@ -890,7 +890,7 @@ def survey_page():
             for i, item in enumerate(ESS_ITEMS, start=1):
                 key = f"ESS{i}"
                 ess_vals[key] = st.radio(
-                    f"{i}. {item}",
+                    f"{item}",
                     options=LIKERT_1_7,
                     index=None,
                     horizontal=True,
@@ -905,7 +905,7 @@ def survey_page():
             for i, item in enumerate(ISS_ITEMS, start=1):
                 key = f"ISS{i}"
                 iss_vals[key] = st.radio(
-                    f"{10+i}. {item}",
+                    f"{item}",
                     options=LIKERT_1_7,
                     index=None,
                     horizontal=True,
