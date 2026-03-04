@@ -60,6 +60,9 @@ My son got tired of the cat and mouse game and pointed the gifts out on my birth
 Lesson learned: over the next year I want to structure some time to enjoy what I have. Starting with looking around my home office every time I use it. I don’t want to miss an early bonus again. :) My birthday wish for all of us is to **find the balance** between chasing our goals and enjoying the ones we have already achieved.
 """.strip()
 
+
+TOPIC_LABEL = "work-life balance difficulties"
+PRONOUN_POSSESSIVE = "her"
 DEFAULT_SCORE = 5
 
 # --- logging controls (reduce "too many logs") ---
@@ -92,6 +95,7 @@ st.markdown(
 footer {visibility: hidden;}
 header [data-testid="stToolbar"] {display: none !important;}
 header [data-testid="stToolbarActions"] {display: none !important;}
+.emph { background-color: #fff3cd; padding: 0 4px; border-radius: 4px; text-decoration: underline; font-weight: 700; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -518,24 +522,13 @@ def practice_questions_page():
 
     st.session_state.setdefault("practice_attempts", 0)
 
-    # Use a form so values persist and are submitted together
     with st.form("practice_form", clear_on_submit=False):
-        # q1 = st.text_input(
-        #     "1) Please type the **5th word** in this sentence:\n\n"
-        #     "“Entrepreneurs often work hard because success takes time.”",
-        #     key="practice_q1",
-        # )
-        # q2 = st.radio(
-        #     "2) Please select **Orange** from the options below:",
-        #     options=["Apple", "Orange", "Banana", "Grape"],
-        #     index=None,
-        #     key="practice_q2",
-        # )
-
         st.markdown("**What is the fifth word in the following sentence:**")
         st.markdown(f"> {ATTENTION_CHECK_1_SENTENCE}")
         att1 = st.radio("", ATTENTION_CHECK_1_OPTIONS, index=None, horizontal=True, label_visibility="collapsed")
+
         st.divider()
+
         att2 = st.radio(
             "**What is your favorite fruit? Please select Orange to show that you are paying attention to this question.**",
             ATTENTION_CHECK_2_OPTIONS,
@@ -545,40 +538,60 @@ def practice_questions_page():
 
         submitted = st.form_submit_button("Continue")
 
-    if submitted:
-        st.session_state.practice_attempts += 1
+    if not submitted:
+        return
 
-        ans1 = att1  # (q1 or "").strip()
-        ans2 = att2  # q2
+    # Require both answers (do not count as an attempt if they didn't answer)
+    if att1 is None or att2 is None:
+        st.error("Please answer both practice questions before continuing.")
+        return
 
-        pass1 = (ans1.lower() == "because")
-        pass2 = (ans2 == "Orange")
-        passed = pass1 and pass2
+    st.session_state.practice_attempts += 1
 
-        # ✅ Record to Google Sheet (one row per attempt; includes pass/fail)
-        log_event(
-            "practice_questions",
-            title=f"practice_attempt_{st.session_state.practice_attempts}",
-            payload={
-                "q1_answer": ans1,
-                "q2_answer": ans2,
-                "pass_q1": pass1,
-                "pass_q2": pass2,
-                "passed": passed,
-            },
-        )
+    ans1 = att1
+    ans2 = att2
 
-        # if not passed:
-        #     st.error("One or more answers were incorrect. Please try again.")
-        #     st.info("Tip: For Q1, count the words in the sentence carefully.")
-        #     return
+    pass1 = (str(ans1).strip().lower() == str(ATTENTION_CHECK_1_CORRECT).strip().lower())
+    pass2 = (ans2 == ATTENTION_CHECK_2_CORRECT)
+    passed = pass1 and pass2
 
-        # ✅ Passed → go to experiments
+    # Log each attempt (pass/fail)
+    log_event(
+        "practice_questions",
+        title=f"practice_attempt_{st.session_state.practice_attempts}",
+        payload={
+            "q1_answer": ans1,
+            "q2_answer": ans2,
+            "pass_q1": pass1,
+            "pass_q2": pass2,
+            "passed": passed,
+        },
+    )
+
+    if passed:
         st.session_state.stage = "experiment"
-        st.session_state.scroll_top_next = True  # if you use the scroll-to-top flag
+        st.session_state.scroll_top_next = True
         st.rerun()
 
+    # Failed
+    if st.session_state.practice_attempts == 1:
+        # First failure: show a pop-up alert + on-page warning
+        components.html(
+            f"<script>window.parent.alert({json.dumps('Please read the questions carefully and try again.')});</script>",
+            height=0,
+        )
+        st.warning("One or more answers were incorrect. Please read the questions carefully and try again.")
+        return
 
+    # Second failure: end the study
+    log_event(
+        "attention_check_failed",
+        title="failed_twice",
+        payload={"attempts": st.session_state.practice_attempts, "q1": ans1, "q2": ans2},
+    )
+    st.session_state.stage = "failed_attention"
+    st.session_state.scroll_top_next = True
+    st.rerun()
 
 
 # =============================================================================
@@ -637,7 +650,10 @@ def count_words(text: str) -> int:
 def experiment_page():
     render_banner()
 
-    st.markdown(f"**Below, you will read a thread posted by {POSTED_BY_NAME} on social media.**")
+    st.markdown(
+        f"<div style='font-weight:700;'>Below, you will read a thread posted by <span class='emph'>{POSTED_BY_NAME}</span> on social media about <span class='emph'>{TOPIC_LABEL}</span>.</div>",
+        unsafe_allow_html=True,
+    )
     render_post_meta()
 
     st.title(POST_TITLE)
@@ -645,6 +661,13 @@ def experiment_page():
     st.divider()
 
     st.subheader("Add your comment")
+
+    st.markdown(
+        f"**Tip:** How would you comment on **{POSTED_BY_NAME}**'s thread about **{PRONOUN_POSSESSIVE}** **{TOPIC_LABEL}**?"
+    )
+    st.caption(
+        "Note: Please write the comment independently, without using AI assistance. Responses that do not reflect independent effort may not qualify for the reward."
+    )
 
     # Make sure these exist
     st.session_state.setdefault("comment_draft", "")
@@ -658,12 +681,7 @@ def experiment_page():
             "Write your comment:",
             key="comment_draft",
             height=180,
-            placeholder=(
-                "Minimum 50 words.\n"
-                "Tip: How would you comment on Maria’s thread about her work life balance difficulties?\n"
-                "Note: Please write the comment independently, without using AI assistance. Responses that do not reflect independent effort may not qualify for the reward."
-
-            ),
+            placeholder=("Minimum 50 words."),
             help="You must write at least 50 words before submitting."
         )
 
@@ -870,7 +888,7 @@ def survey_page():
             for i, item in enumerate(ESS_ITEMS, start=1):
                 key = f"ESS{i}"
                 ess_vals[key] = st.radio(
-                    f"{i}. {item}",
+                    f"{item}",
                     options=LIKERT_1_7,
                     index=None,
                     horizontal=True,
@@ -879,11 +897,13 @@ def survey_page():
 
             st.divider()
 
+            st.caption("Scale: 1 = Strongly disagree, 7 = Strongly agree")
+
             iss_vals = {}
             for i, item in enumerate(ISS_ITEMS, start=1):
                 key = f"ISS{i}"
                 iss_vals[key] = st.radio(
-                    f"{10+i}. {item}",
+                    f"{item}",
                     options=LIKERT_1_7,
                     index=None,
                     horizontal=True,
@@ -1130,20 +1150,19 @@ def done_page():
     # render_debug_box()
 
 
+def failed_attention_page():
+    render_banner()
+    st.title("Not qualified")
+    st.error("Really sorry, but you failed the attention check twice and are not qualified for this study.")
+    st.caption("You may now close this tab.")
+
+
 # =============================================================================
 # ROUTER
 # =============================================================================
 def main():
     # Auto PID from Prolific URL
-
-    if st.session_state.get("prolific_id") is None:
-        qp = get_query_param("PROLIFIC_PID")
-        if qp and qp.strip():
-            st.session_state.prolific_id = qp.strip()
-            if not st.session_state.get("_logged_auto_pid"):
-                log_event("session_start", payload={"pid": st.session_state.prolific_id, "source": "query_param"})
-                st.session_state._logged_auto_pid = True
-            st.session_state.stage = "experiment"
+    # (We prefill the Prolific ID on the PID page via the URL parameter, but do NOT auto-skip any steps.)
 
     stage = st.session_state.stage
     if st.session_state.stage == "consent":
@@ -1151,6 +1170,9 @@ def main():
         return
     if st.session_state.stage == "practice":
         practice_questions_page()
+        return
+    if stage == "failed_attention":
+        failed_attention_page()
         return
     if stage == "pid":
         pid_page();
