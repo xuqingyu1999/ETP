@@ -874,7 +874,7 @@ Please answer each item according to the following scale:
     with st.form("survey_step1_form"):
         answers: Dict[str, Any] = {}
 
-        st.markdown("**Hope**")
+        # st.markdown("**Hope**")
         hope_items = [
             "If I were the entrepreneur, this post would enable me to think of many ways to get out of the current difficulties in the business.",
             "If I were the entrepreneur, this post would enable me to energetically pursue my business goals.",
@@ -888,7 +888,7 @@ Please answer each item according to the following scale:
 
         st.divider()
 
-        st.markdown("**Loneliness**")
+        # st.markdown("**Loneliness**")
         lonely_items = [
             "If I were the entrepreneur, this post would make me feel that I lack companionship.",
             "If I were the entrepreneur, this post would make me feel that there is no one I can turn to.",
@@ -904,7 +904,7 @@ Please answer each item according to the following scale:
 
         st.divider()
 
-        st.markdown("**Perceived supportedness**")
+        # st.markdown("**Perceived supportedness**")
         ps_items = [
             "This response made me feel understood.",
             "This response made me feel supported.",
@@ -915,7 +915,7 @@ Please answer each item according to the following scale:
 
         st.divider()
 
-        st.markdown("**Level of negativity of venting posts**")
+        # st.markdown("**Level of negativity of venting posts**")
         answers["vent_negativity"] = likert8(
             "To what extent does this post express frustrations and negative experiences?",
             "vent_negativity",
