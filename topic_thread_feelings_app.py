@@ -337,7 +337,7 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
     The 'post' field: first line -> title; remainder -> body.
     """
     if uploaded_bytes is not None:
-        text = uploaded_bytes.decode("utf-8-sig")
+        text = uploaded_bytes.decode("gb18030")
         f = text.splitlines()
         reader = csv.reader(f)
         rows = list(reader)
@@ -349,7 +349,7 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
         dict_rows = [dict(zip(headers, r)) for r in data_rows if any(cell.strip() for cell in r)]
         keys = headers
     else:
-        with open(path, "r", encoding="utf-8-sig", newline="") as fh:
+        with open(path, "r", encoding="gb18030", newline="") as fh:
             dr = csv.DictReader(fh)
             dict_rows = list(dr)
             keys = dr.fieldnames or []
