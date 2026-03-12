@@ -57,7 +57,7 @@ My husband told me this on my birthday (yesterday) and I think – I need to imp
 
 My son got tired of the cat and mouse game and pointed the gifts out on my birthday. While opening the gift, my husband said you are chasing the things you want and fail to enjoy the things you have. He is right (he always is :) The funny part is that the gift he offered me was going to be my December bonus for achieving my quarterly goals.
 
-Lesson learned: over the next year I want to structure some time to enjoy what I have. Starting with looking around my home office every time I use it. I don’t want to miss an early bonus again. :) My birthday wish for all of us is to **find the balance** between chasing our goals and enjoying the ones we have already achieved.
+Lesson learned: over the next year I want to structure some time to enjoy what I have. Starting with looking around my home office every time I use it. I don’t want to miss an early bonus again. :) My birthday wish for all of us is to find the balance between chasing our goals and enjoying the ones we have already achieved.
 """.strip()
 
 
