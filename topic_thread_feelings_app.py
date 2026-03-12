@@ -95,8 +95,25 @@ header [data-testid="stToolbarActions"] {display: none !important;}
   font-weight: 800;
   text-decoration: underline;
   background: #fff3bf;
+  color: #111; /* Ensure text is visible against light yellow background even in dark mode */
   padding: 0 4px;
   border-radius: 4px;
+}
+
+/* Fix text color visibility across themes */
+.stMarkdown, .stText, p, div {
+  color: var(--text-color);
+}
+
+/* Fix specific hardcoded text colors */
+.reddit-text {
+  color: #111;
+}
+
+@media (prefers-color-scheme: dark) {
+  .reddit-text {
+    color: #e0e0e0;
+  }
 }
 
 /* Slightly more Reddit-y typography */
@@ -304,10 +321,10 @@ def render_comment(comment_text: str):
             </div>
             <div style="flex:1;">
                 <div style="font-size:0.95rem; color:#6e6e6e;">
-                    <span style="font-weight:800; color:#111;">{COMMENTER_USERNAME}</span>
+                    <span style="font-weight:800; color:var(--text-color);">{COMMENTER_USERNAME}</span>
                     &nbsp;&middot;&nbsp; {COMMENT_DAYS_AGO} days ago
                 </div>
-                <div style="margin-top:4px; font-size:1rem; line-height:1.45; color:#111;">
+                <div style="margin-top:4px; font-size:1rem; line-height:1.45; color:var(--text-color);">
                     {safe_text}
                 </div>
             </div>
