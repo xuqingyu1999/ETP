@@ -57,9 +57,7 @@ Running a business is difficult! I am a small business owner. For the last two y
 
 They call me every other day even though I’ve told them again and again that they can email me offers. I don’t have time to answer disguised calls from reps all day. I understand how yelp works... I understand that i got more customer views when I was advertising with yelp... i understand how to setup everything on yelp and do not need any assistance...
 
-The harassment, call number disguising, the taking down of reviews, removing service locations... it’s not good business. Now today, I log in... and it keeps clearing my services list.
-
-I’m wondering how many others this happens to. Google Reviews is only going to improve, and yelp will be nothing... I’m done with them.
+The harassment, call number disguising, the taking down of reviews, removing service locations... it’s not good business. Now today, I log in... and it keeps clearing my services list. I’m wondering how many others this happens to. Google Reviews is only going to improve, and yelp will be nothing... I’m done with them.
 """.strip()
 
 
@@ -890,7 +888,7 @@ def survey_page():
             for i, item in enumerate(ESS_ITEMS, start=1):
                 key = f"ESS{i}"
                 ess_vals[key] = st.radio(
-                    f"{i}. {item}",
+                    f"{item}",
                     options=LIKERT_1_7,
                     index=None,
                     horizontal=True,
@@ -905,7 +903,7 @@ def survey_page():
             for i, item in enumerate(ISS_ITEMS, start=1):
                 key = f"ISS{i}"
                 iss_vals[key] = st.radio(
-                    f"{10+i}. {item}",
+                    f"{item}",
                     options=LIKERT_1_7,
                     index=None,
                     horizontal=True,
