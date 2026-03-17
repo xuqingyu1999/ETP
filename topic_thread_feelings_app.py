@@ -56,7 +56,7 @@ TOPIC_GROUPS: Dict[str, List[str]] = {
         "Growth challenges",
         "Employee",
         "Legal",
-        "Operations",
+        #"Operations",
     ],
     "Worklife balance": [
         "Family responsibilities",
