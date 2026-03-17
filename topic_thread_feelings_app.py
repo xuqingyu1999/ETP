@@ -1,6 +1,8 @@
+
 import base64
 import csv
 import html
+import io
 import json
 import os
 import random
@@ -8,7 +10,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -17,21 +19,21 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # =============================================================================
-# EXPERIMENT SETTINGS
+# APP SETTINGS
 # =============================================================================
-EXPERIMENT_VARIANT = "TOPIC_THREAD_FEELINGS_V2"
+CONDITION = "TOPIC_FEELINGS_V2"  # logged as "variant" in Google Sheet
 
-# Reddit-like UI meta
-SUBREDDIT = "r/business"
-POST_DAYS_AGO = 7
-
-# Neutral poster identity shown in the prompt (not necessarily inside the post text)
+# Neutral identities shown in the prompt (not necessarily inside the post text)
 POSTED_BY_NAME = "Alex"
 AUTHOR_USERNAME = "HiddenBadger74"
 
 # Commenter identity (neutral)
 COMMENTER_USERNAME = "SageOtter21"
 COMMENT_DAYS_AGO = 5
+
+# UI meta
+SUBREDDIT = "r/Entrepreneur"
+POST_DAYS_AGO = 3
 
 # Timing gates
 MIN_SECONDS_CONSENT = 10
@@ -46,7 +48,7 @@ ATTENTION_CHECK_1_CORRECT = "because"
 ATTENTION_CHECK_2_OPTIONS = ["Grape", "Apple", "Pear", "Orange", "Strawberry"]
 ATTENTION_CHECK_2_CORRECT = "Orange"
 
-# Topic choices
+# Topic choices (participant is randomly assigned to ONE group after passing attention check)
 TOPIC_GROUPS: Dict[str, List[str]] = {
     "Business": [
         "Financing",
@@ -66,19 +68,8 @@ TOPIC_GROUPS: Dict[str, List[str]] = {
     ],
 }
 
-# CSV source (recommended columns: topic, post_title, post_body, comment; optional: link_id)
-DEFAULT_THREADS_CSV_CANDIDATES = ["topic_threads_cleaned.csv", "topic_threads.csv"]
-
-# Google Sheet target
-DEFAULT_SPREADSHEET_NAME = "ETP-TOPIC-FEELINGS"
-GSHEET_KEYS = ["id", "start", "variant", "timestamp", "type", "title", "url"]
-
-APP_DIR = Path(__file__).parent
-REDDIT_LOGO_PATH = APP_DIR / "reddit_logo.png"
-AVATAR_PATH = APP_DIR / "avatar.jpg"
-
 # =============================================================================
-# STREAMLIT PAGE CONFIG + GLOBAL CSS
+# STREAMLIT CONFIG + CSS
 # =============================================================================
 st.set_page_config(page_title="Thread Feelings Study", page_icon="🧪", layout="centered")
 
@@ -95,62 +86,46 @@ header [data-testid="stToolbarActions"] {display: none !important;}
   font-weight: 800;
   text-decoration: underline;
   background: #fff3bf;
-  color: #111 !important; /* ensure readable on the highlight in both light/dark themes */
   padding: 0 4px;
   border-radius: 4px;
-}
-
-/* Make meta text "muted" without hard-coding colors (works in light/dark) */
-.muted { opacity: 0.75; }
-.muted-2 { opacity: 0.6; }
-
-/* Post typography */
-.post-title {
-  font-size: 1.45rem;
-  font-weight: 800;
-  margin: 0.2rem 0 0.55rem 0;
-  line-height: 1.25;
-}
-.post-body {
-  font-size: 1.02rem;
-  line-height: 1.55;
-  margin-bottom: 0.2rem;
-}
-
-/* Comment typography */
-.comment-label {
-  font-weight: 800;
-  margin: 0.2rem 0 0.4rem 0;
-}
-.comment-container {
-  display:flex;
-  gap:10px;
-  margin-top: 4px;
-  margin-bottom: 8px;
-}
-.avatar-circle {
-  width:34px;
-  height:34px;
-  border-radius:50%;
-  background: rgba(127,127,127,0.22);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight: 800;
-  color: inherit;
-  border: 1px solid rgba(127,127,127,0.25);
-}
-.comment-header {
-  font-size:0.95rem;
-}
-.comment-body {
-  margin-top:4px;
-  font-size:1rem;
-  line-height:1.45;
+  color: #111 !important; /* readable on light highlight even in dark theme */
 }
 
 /* Slightly more Reddit-y typography */
 :root { --banner-font-size: 2rem; }
+
+/* Thread typography */
+.post-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 6px 0 10px 0;
+}
+.post-body {
+  font-size: 1rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.meta-muted {
+  font-size: 0.95rem;
+  opacity: 0.72;
+}
+.avatar-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+.comment-wrap {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.hr-tight { margin: 0 0 20px 0; }
+
 </style>
 """,
     unsafe_allow_html=True,
@@ -172,9 +147,9 @@ def get_query_param(name: str) -> Optional[str]:
         return v
     except Exception:
         try:
-            params = st.experimental_get_query_params()
-            v2 = params.get(name)
-            return v2[0] if v2 else None
+            qp = st.experimental_get_query_params()
+            vals = qp.get(name)
+            return vals[0] if vals else None
         except Exception:
             return None
 
@@ -183,7 +158,7 @@ def scroll_to_top_once() -> None:
     components.html(
         """
 <script>
-  window.scrollTo({ top: 0, behavior: 'instant' });
+window.scrollTo({ top: 0, behavior: 'instant' });
 </script>
 """,
         height=0,
@@ -194,7 +169,7 @@ def show_alert(message: str) -> None:
     components.html(
         f"""
 <script>
-  alert({json.dumps(message)});
+alert({json.dumps(message)});
 </script>
 """,
         height=0,
@@ -202,196 +177,177 @@ def show_alert(message: str) -> None:
 
 
 def to_data_uri(local_path: Path) -> str:
-    """Return a data: URI for an image if it exists; otherwise empty string."""
     if not local_path.exists():
         return ""
     suffix = local_path.suffix.lower()
-    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(
-        suffix, "image/png"
-    )
+    mime = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+    }.get(suffix, "image/png")
     b64 = base64.b64encode(local_path.read_bytes()).decode("utf-8")
     return f"data:{mime};base64,{b64}"
-
-
-def _nl2br_escaped(text: str) -> str:
-    """Escape HTML and convert newlines to <br>."""
-    safe = html.escape(text or "")
-    safe = safe.replace("\r\n", "\n").replace("\r", "\n")
-    safe = "\n".join(line.rstrip() for line in safe.split("\n"))
-    safe = safe.replace("\n", "<br>")
-    return safe
-
-
-def _normalize_text(text: str) -> str:
-    text = (text or "").replace("\r\n", "\n").replace("\r", "\n")
-    text = "\n".join(line.rstrip() for line in text.split("\n"))
-    return text.strip()
 
 
 # =============================================================================
 # GOOGLE SHEETS LOGGING
 # =============================================================================
-def get_credentials_from_secrets() -> Dict[str, Any]:
-    creds_dict = {k: v for k, v in st.secrets["GOOGLE_CREDENTIALS"].items()}
-    if isinstance(creds_dict.get("private_key"), str):
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-    return creds_dict
+def get_credentials_from_secrets() -> ServiceAccountCredentials:
+    creds = st.secrets.get("GOOGLE_CREDENTIALS", None)
+    if creds is None:
+        raise RuntimeError("Missing GOOGLE_CREDENTIALS in Streamlit secrets.")
+    if isinstance(creds, str):
+        creds = json.loads(creds)
 
-
-@st.cache_resource(show_spinner=False)
-def _get_sheet1():
     scope = [
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive",
     ]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(get_credentials_from_secrets(), scope)
+    return ServiceAccountCredentials.from_json_keyfile_dict(creds, scope)
+
+
+def _get_sheet1():
+    spreadsheet_name = st.secrets.get("SPREADSHEET_NAME", "ETP-TOPIC-FEELINGS")
+    creds = get_credentials_from_secrets()
     client = gspread.authorize(creds)
-
-    spreadsheet_name = (
-        st.secrets.get("SPREADSHEET_NAME", None)
-        if hasattr(st, "secrets")
-        else None
-    )
-    spreadsheet_name = spreadsheet_name or os.getenv("SPREADSHEET_NAME") or DEFAULT_SPREADSHEET_NAME
-    ws = client.open(spreadsheet_name).sheet1
-
-    # Ensure header exists
-    first = ws.row_values(1)
-    if not first:
-        ws.append_row(GSHEET_KEYS)
-
-    return ws
-
-
-LOCAL_FALLBACK = "fallback_event_log.csv"
+    sh = client.open(spreadsheet_name)
+    return sh.sheet1
 
 
 def _append_local(row: List[Any]) -> None:
-    exists = Path(LOCAL_FALLBACK).exists()
-    with open(LOCAL_FALLBACK, "a", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        if not exists:
-            w.writerow(GSHEET_KEYS)
-        w.writerow(row)
+    """Fallback: append to a local CSV for debugging if GSheet fails."""
+    path = Path(__file__).parent / "local_log_fallback.csv"
+    with open(path, "a", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(row)
 
 
-def save_to_gsheet(data: Dict[str, Any]) -> None:
-    row = [data.get(k, "") for k in GSHEET_KEYS]
-    _append_local(row)
-
+def save_to_gsheet(row: List[Any]) -> None:
     try:
         ws = _get_sheet1()
-        ws.append_row(row)
-    except Exception as e:
-        # keep error for debug
-        st.session_state["_gsheet_error"] = str(e)
+        ws.append_row(row, value_input_option="RAW")
+    except Exception:
+        # Don't crash the experiment in production—fallback local
+        _append_local(row)
 
 
-def log_event(event_type: str, *, title: str = "", payload: Optional[Dict[str, Any]] = None) -> None:
+def log_event(event_type: str, title: str = "", payload: Optional[Dict[str, Any]] = None) -> None:
+    payload = payload or {}
     pid = st.session_state.get("prolific_id") or ""
     start = st.session_state.get("start_time") or ""
-    save_to_gsheet(
-        {
-            "id": pid,
-            "start": start,
-            "variant": EXPERIMENT_VARIANT,
-            "timestamp": utc_now_iso(),
-            "type": event_type,
-            "title": title,
-            "url": json.dumps(payload or {}, ensure_ascii=False),
-        }
-    )
+    ts = utc_now_iso()
 
-
-def render_debug_box():
-    with st.expander("Debug (Google Sheets / CSV)", expanded=False):
-        st.write("Variant:", EXPERIMENT_VARIANT)
-        st.write("Stage:", st.session_state.get("stage"))
-        st.write("Assigned category:", st.session_state.get("assigned_category"))
-        st.write("Chosen subtopic:", st.session_state.get("chosen_subtopic"))
-        st.write("Thread source:", st.session_state.get("_threads_source"))
-        err = st.session_state.get("_gsheet_error")
-        if err:
-            st.error(f"GSheet error: {err}")
-        st.write("Local fallback log:", LOCAL_FALLBACK)
+    row = [
+        pid,                          # id
+        start,                        # start
+        CONDITION,                    # variant
+        ts,                           # timestamp
+        event_type,                   # type
+        title or "",                  # title
+        json.dumps(payload, ensure_ascii=False),  # url (payload)
+    ]
+    save_to_gsheet(row)
 
 
 # =============================================================================
-# UI COMPONENTS
+# REDDIT-LIKE UI
 # =============================================================================
+APP_DIR = Path(__file__).parent
+REDDIT_LOGO_PATH = APP_DIR / "reddit_logo.png"
+AVATAR_PATH = APP_DIR / "avatar.jpg"
+
+
 def render_banner():
     logo_uri = to_data_uri(REDDIT_LOGO_PATH)
-    img_html = f'<img src="{logo_uri}" style="width:36px;height:36px;">' if logo_uri else ""
+    if logo_uri:
+        logo_html = f'<img src="{logo_uri}" style="width:36px;height:36px;">'
+    else:
+        # fallback if the image isn't present
+        logo_html = '<div style="width:36px;height:36px;border-radius:8px;background:#ff4500;"></div>'
+
     st.markdown(
         f"""
-        <div style="display:flex;align-items:center;gap:10px;width:100%;padding:16px 0 24px 0;">
-            {img_html}
-            <span style="font-family:Roboto,Arial,sans-serif;font-size:var(--banner-font-size);line-height:1.1;font-weight:700;color:#FF4500;">reddit</span>
-        </div>
-        <hr style="margin:0 0 20px 0;">
-        """,
+<div style="display:flex;align-items:center;gap:10px;width:100%;padding:16px 0 24px 0;">
+  {logo_html}
+  <span style="font-family:Roboto,Arial,sans-serif;font-size:var(--banner-font-size);line-height:1.1;font-weight:700;color:#FF4500;">reddit</span>
+</div>
+<hr class="hr-tight">
+""",
         unsafe_allow_html=True,
     )
 
 
 def render_post_meta():
     avatar_uri = to_data_uri(AVATAR_PATH)
-    img_html = (
-        f'<img src="{avatar_uri}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">'
-        if avatar_uri
-        else '<div class="avatar-circle" style="width:40px;height:40px;">A</div>'
-    )
+    if avatar_uri:
+        avatar_html = f'<img src="{avatar_uri}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">'
+    else:
+        avatar_html = f'<div class="avatar-circle" style="width:40px;height:40px;">{html.escape((AUTHOR_USERNAME[:1] or "?").upper())}</div>'
+
     st.markdown(
         f"""
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-            {img_html}
-            <div style="line-height:1.1;">
-                <div style="font-weight:700;">{html.escape(SUBREDDIT)} &middot; {POST_DAYS_AGO} days ago</div>
-                <div class="muted" style="font-size:0.95rem;">{html.escape(AUTHOR_USERNAME)}</div>
-            </div>
-        </div>
-        """,
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+  {avatar_html}
+  <div style="line-height:1.1;">
+    <div style="font-weight:700;">{html.escape(SUBREDDIT)} &middot; {POST_DAYS_AGO} days ago</div>
+    <div class="meta-muted">{html.escape(AUTHOR_USERNAME)}</div>
+  </div>
+</div>
+""",
         unsafe_allow_html=True,
     )
 
 
-def render_post_content(title: str, body: str):
-    safe_title = _nl2br_escaped(_normalize_text(title))
-    safe_body = _nl2br_escaped(_normalize_text(body))
-    st.markdown(
-        f"""
-        <div class="post-title">{safe_title}</div>
-        <div class="post-body">{safe_body}</div>
-        """,
-        unsafe_allow_html=True,
-    )
+def render_text_block(text: str) -> None:
+    safe = html.escape(text or "")
+    st.markdown(f'<div class="post-body">{safe}</div>', unsafe_allow_html=True)
+
+
+def render_post_content(title: str, body: str) -> None:
+    safe_title = html.escape(title or "")
+    st.markdown(f'<div class="post-title">{safe_title}</div>', unsafe_allow_html=True)
+    if body:
+        render_text_block(body)
 
 
 def render_comment(comment_text: str):
     letter = (COMMENTER_USERNAME[:1] or "?").upper()
-    safe_text = _nl2br_escaped(_normalize_text(comment_text))
+    safe_user = html.escape(COMMENTER_USERNAME)
+    safe_text = html.escape(comment_text or "")
 
     st.markdown(
         f"""
-        <div class="comment-container">
-            <div class="avatar-circle">{html.escape(letter)}</div>
-            <div style="flex:1;">
-                <div class="comment-header muted">
-                    <span style="font-weight:800; opacity: 1;">{html.escape(COMMENTER_USERNAME)}</span>
-                    &nbsp;&middot;&nbsp; {COMMENT_DAYS_AGO} days ago
-                </div>
-                <div class="comment-body">
-                    {safe_text}
-                </div>
-            </div>
-        </div>
-        """,
+<div class="comment-wrap">
+  <div class="avatar-circle">{html.escape(letter)}</div>
+  <div style="flex:1;">
+    <div class="meta-muted">
+      <span style="font-weight:800;">{safe_user}</span>
+      &nbsp;&middot;&nbsp; {COMMENT_DAYS_AGO} days ago
+    </div>
+    <div class="post-body" style="margin-top:4px;">{safe_text}</div>
+  </div>
+</div>
+""",
         unsafe_allow_html=True,
     )
 
 
+def render_thread_context(thread: Dict[str, str], subtopic: str, *, show_post_body: bool = True) -> None:
+    """
+    Show the post (title + optionally body) and comment in a consistent way.
+    Used on both the thread page and survey pages so participants can revisit the comment.
+    """
+    render_post_meta()
+    render_post_content(thread.get("title", ""), thread.get("body", "") if show_post_body else "")
+    st.divider()
+    st.markdown("**Comment**")
+    render_comment(thread.get("comment", ""))
+
+
 # =============================================================================
-# CSV LOADER + LIGHT CLEANUP
+# CSV LOADER
 # =============================================================================
 def _pick_column(keys: List[str], candidates: List[str]) -> Optional[str]:
     lower_map = {k.lower().strip(): k for k in keys}
@@ -401,105 +357,49 @@ def _pick_column(keys: List[str], candidates: List[str]) -> Optional[str]:
     return None
 
 
-def _decode_bytes_with_fallback(b: bytes) -> str:
-    """Decode bytes to text using a small set of likely encodings."""
-    for enc in ("utf-8-sig", "utf-8", "cp1252"):
+def _decode_bytes(b: bytes) -> str:
+    # Robustly handle Excel-exported CSV encodings
+    for enc in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
         try:
             return b.decode(enc)
         except UnicodeDecodeError:
             continue
-    # last resort
     return b.decode("utf-8", errors="replace")
-
-
-def _read_csv_text(path: str) -> Tuple[List[Dict[str, str]], List[str]]:
-    """Read a CSV from disk with encoding fallback. Returns (rows, headers)."""
-    raw = Path(path).read_bytes()
-    text = _decode_bytes_with_fallback(raw)
-    f = text.splitlines()
-    reader = csv.reader(f)
-    rows = list(reader)
-    if not rows:
-        return [], []
-    headers = rows[0]
-    data_rows = rows[1:]
-    dict_rows = [dict(zip(headers, r)) for r in data_rows if any(str(cell).strip() for cell in r)]
-    return dict_rows, headers
-
-
-def clean_thread_fields(topic: str, title: str, body: str, comment: str) -> Tuple[str, str, str, str]:
-    """
-    Minimal cleanup to avoid formatting issues and remove a few flagged strings.
-    - Avoid visible backslashes from prior escaping (e.g., '\\$' -> '$')
-    - Remove a specific location string in Growth challenges ("Key West")
-    - Redact sensitive / link-heavy segments in Employee comment by replacing with a neutral version
-    """
-    topic_norm = (topic or "").strip()
-
-    title = _normalize_text(title).replace(r"\$", "$")
-    body = _normalize_text(body).replace(r"\$", "$")
-    comment = _normalize_text(comment).replace(r"\$", "$")
-
-    # Growth challenges: remove location label
-    if topic_norm.lower() == "growth challenges":
-        body = body.replace("Key West", "a local area").replace("KEY WEST", "a local area")
-
-    # Employee: replace comment with cleaned version (removes PDF/link + location references)
-    if topic_norm.lower() == "employee":
-        comment = """Hi there — IT person here, offering some perspective.
-
-An entry-level hardware service technician role is often compared to PC technician / Tier I support roles. If the wage you're offering is below local market rates, it can be very difficult to hire—even for an entry-level position.
-
-A few ideas that may help:
-- Re-check what similar roles pay in your area and adjust compensation (or clarify the role as a trainee/apprentice position).
-- Tighten the job description so candidates understand the required skills and expectations.
-- Broaden recruiting channels (community colleges, trade schools, apprenticeship programs), and make the application process simple.
-
-TL;DR: If pay and expectations don't match the market, you'll keep seeing low-quality applicants or people declining offers."""
-
-    return topic_norm, title, body, comment
 
 
 def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> List[Dict[str, str]]:
     """
     Supports:
-      - Named columns (recommended): topic, post_title, post_body, comment (optional: link_id)
+      - Named columns (recommended): topic, post_title, post_body, comment, link_id (optional)
       - Alternative names: Topic/Post/Comment; post_md; comment_md; etc.
       - If unnamed/unknown but exactly 3 columns: assumes topic, post, comment by order.
-    If a single 'post' column is used: first line -> title; remainder -> body.
     """
     if uploaded_bytes is not None:
-        text = _decode_bytes_with_fallback(uploaded_bytes)
-        f = text.splitlines()
-        reader = csv.reader(f)
-        rows = list(reader)
-        if not rows:
-            return []
-        headers = rows[0]
-        data_rows = rows[1:]
-        dict_rows = [dict(zip(headers, r)) for r in data_rows if any(str(cell).strip() for cell in r)]
-        keys = headers
+        text = _decode_bytes(uploaded_bytes)
     else:
-        dict_rows, keys = _read_csv_text(path)
+        with open(path, "rb") as fh:
+            text = _decode_bytes(fh.read())
+
+    reader = csv.DictReader(io.StringIO(text))
+    dict_rows = list(reader)
+    keys = reader.fieldnames or []
 
     if not dict_rows:
         return []
 
-    # detect columns
     topic_col = _pick_column(keys, ["topic", "subtopic", "topic_name"])
-    post_col = _pick_column(keys, ["post", "thread", "post_md", "post_text", "postcontent"])
     comment_col = _pick_column(keys, ["comment", "reply", "comment_md", "comment_text", "response"])
+    title_col = _pick_column(keys, ["post_title", "title"])
+    body_col = _pick_column(keys, ["post_body", "body"])
+    # fallback combined post column (3-col format)
+    post_col = _pick_column(keys, ["post", "thread", "post_md", "post_text", "postcontent"])
+    link_col = _pick_column(keys, ["link_id", "id", "thread_id", "reddit_id"])
 
-    # fallback: if exactly 3 columns and any of above missing
-    if (topic_col is None or (post_col is None and (_pick_column(keys, ["post_title", "title"]) is None)) or comment_col is None) and len(keys) == 3:
+    # If exactly 3 columns and any required missing, assume order.
+    if (topic_col is None or comment_col is None or (title_col is None and body_col is None and post_col is None)) and len(keys) == 3:
         topic_col = topic_col or keys[0]
         post_col = post_col or keys[1]
         comment_col = comment_col or keys[2]
-
-    # optional split columns
-    title_col = _pick_column(keys, ["post_title", "title"])
-    body_col = _pick_column(keys, ["post_body", "body"])
-    linkid_col = _pick_column(keys, ["link_id", "linkid", "reddit_id"])
 
     threads: List[Dict[str, str]] = []
     for r in dict_rows:
@@ -507,23 +407,26 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
         if not topic:
             continue
 
+        title = ""
+        body = ""
         if title_col and body_col:
             title = (r.get(title_col, "") or "").strip()
             body = (r.get(body_col, "") or "").strip()
         else:
             post_raw = (r.get(post_col or "", "") or "").strip()
-            if "\n" in post_raw:
-                first, rest = post_raw.split("\n", 1)
-                title = first.strip()
-                body = rest.strip()
-            else:
-                title = post_raw.strip()
-                body = ""
+            if post_raw:
+                # If the "post" is a single blob, first line is title
+                parts = post_raw.splitlines()
+                title = (parts[0] or "").strip()
+                body = "\n".join(parts[1:]).strip() if len(parts) > 1 else ""
 
         comment = (r.get(comment_col or "", "") or "").strip()
-        link_id = (r.get(linkid_col or "", "") or "").strip() if linkid_col else ""
+        link_id = (r.get(link_col or "", "") or "").strip() if link_col else ""
 
-        topic, title, body, comment = clean_thread_fields(topic, title, body, comment)
+        # Basic cleanup (avoid weird CRs)
+        title = title.replace("\r\n", "\n").replace("\r", "\n")
+        body = body.replace("\r\n", "\n").replace("\r", "\n")
+        comment = comment.replace("\r\n", "\n").replace("\r", "\n")
 
         threads.append(
             {
@@ -531,88 +434,61 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
                 "title": title,
                 "body": body,
                 "comment": comment,
-                "link_id": link_id,
+                "thread_id": link_id or f"{topic}-{len(threads)+1}",
+                "source": os.path.basename(path),
             }
         )
 
     return threads
 
 
-def get_threads_data() -> Tuple[List[Dict[str, str]], str]:
-    """
-    Returns (threads, source_description).
-    Tries:
-      1) session_state['uploaded_threads_csv_bytes'] if present
-      2) file path from secrets/env
-      3) fall back to candidate filenames in the app directory
-    """
-    # 1) uploaded
+@st.cache_data(show_spinner=False)
+def get_threads_data() -> (List[Dict[str, str]], str):
+    """Load threads from a path or from an uploaded CSV in session_state."""
+    # Optional: researcher can set a custom path in secrets
+    csv_path = st.secrets.get("TOPIC_CSV_PATH", str(Path(__file__).parent / "topic_threads.csv"))
+
     uploaded = st.session_state.get("uploaded_threads_csv_bytes")
     if uploaded:
-        return load_threads_csv("uploaded", uploaded_bytes=uploaded), "uploaded CSV"
+        try:
+            return load_threads_csv(csv_path, uploaded_bytes=uploaded), "uploaded"
+        except Exception as e:
+            return [], f"uploaded_error: {e}"
 
-    # 2) explicit path from secrets/env
-    csv_path = (
-        st.secrets.get("TOPIC_CSV_PATH", None)
-        if hasattr(st, "secrets")
-        else None
-    )
-    csv_path = csv_path or os.getenv("TOPIC_CSV_PATH")
-    if csv_path:
-        abs_path = Path(csv_path)
-        if not abs_path.is_absolute():
-            abs_path = (APP_DIR / csv_path).resolve()
-        if abs_path.exists():
-            return load_threads_csv(str(abs_path)), str(abs_path)
-
-    # 3) candidates in app folder
-    for cand in DEFAULT_THREADS_CSV_CANDIDATES:
-        p = (APP_DIR / cand).resolve()
-        if p.exists():
-            return load_threads_csv(str(p)), str(p)
-
-    return [], f"missing ({', '.join(DEFAULT_THREADS_CSV_CANDIDATES)})"
+    try:
+        return load_threads_csv(csv_path), csv_path
+    except Exception as e:
+        return [], f"file_error: {e}"
 
 
 def ensure_thread_selected() -> Optional[Dict[str, str]]:
-    """Pick (and freeze) a single thread record based on selected topic."""
-    chosen_topic = st.session_state.get("chosen_subtopic")
-    if not chosen_topic:
-        return None
+    """Randomly select a thread for the chosen subtopic and keep it stable in session_state."""
+    if st.session_state.get("selected_thread") is not None:
+        return st.session_state.selected_thread
 
-    current = st.session_state.get("selected_thread")
-    if current and current.get("topic") == chosen_topic:
-        return current
+    subtopic = st.session_state.get("chosen_subtopic")
+    if not subtopic:
+        return None
 
     threads, source = get_threads_data()
-    if not threads:
-        st.session_state["_threads_source"] = source
-        return None
-
-    matches = [t for t in threads if (t.get("topic") or "").strip().lower() == str(chosen_topic).strip().lower()]
+    matches = [t for t in threads if (t.get("topic") or "").strip().lower() == str(subtopic).strip().lower()]
     if not matches:
-        st.session_state["_threads_source"] = source
-        st.session_state["_threads_missing_topic"] = chosen_topic
+        st.session_state["_threads_missing_topic"] = subtopic
         return None
 
-    picked = random.choice(matches)
-    picked = dict(picked)
-    picked["thread_id"] = str(uuid.uuid4())
-    picked["source"] = source
-
-    st.session_state.selected_thread = picked
-    st.session_state.exp_view_start_ts = None  # reset timer when a new thread is selected
-    st.session_state.thread_read_elapsed_seconds = None
-    return picked
+    chosen = random.choice(matches)
+    st.session_state.selected_thread = chosen
+    return chosen
 
 
 # =============================================================================
-# SURVEY HELPERS
+# SURVEY WIDGETS
 # =============================================================================
-def likert8(question: str, key: str) -> Optional[int]:
-    st.markdown(f"**{question}**")
+def likert8(prompt: str, key: str) -> Optional[int]:
+    # Display without numbering and without subheaders; consistent with prior style
+    st.markdown(prompt)
     return st.radio(
-        "",
+        label="",
         options=[1, 2, 3, 4, 5, 6, 7, 8],
         index=None,
         horizontal=True,
@@ -622,31 +498,11 @@ def likert8(question: str, key: str) -> Optional[int]:
 
 
 def blank(x: Any) -> bool:
-    return x is None or str(x).strip() == ""
+    if x is None:
+        return True
+    s = str(x).strip()
+    return s == ""
 
-
-# =============================================================================
-# SESSION STATE DEFAULTS
-# =============================================================================
-st.session_state.setdefault("stage", "consent")  # consent -> pid -> practice -> topic_select -> experiment(survey1+2) -> done / failed_attention
-st.session_state.setdefault("session_id", str(uuid.uuid4()))
-st.session_state.setdefault("start_time", utc_now_iso())
-st.session_state.setdefault("prolific_id", None)
-
-st.session_state.setdefault("practice_attempts", 0)
-st.session_state.setdefault("attention_attempt_history", [])
-
-st.session_state.setdefault("assigned_category", None)
-st.session_state.setdefault("chosen_subtopic", None)
-
-st.session_state.setdefault("selected_thread", None)
-st.session_state.setdefault("exp_view_start_ts", None)
-st.session_state.setdefault("thread_read_elapsed_seconds", None)
-
-st.session_state.setdefault("survey_step", 1)
-st.session_state.setdefault("survey_answers", {})
-
-st.session_state.setdefault("scroll_top_next", False)
 
 # =============================================================================
 # PAGES
@@ -658,15 +514,15 @@ def consent_page():
         """
 **Study Overview and Consent**
 
-You are invited to participate in a research study about **how entrepreneurs interact on social media**.  
+You are invited to participate in a research study about **how entrepreneurs interact on social media**.
 You must be **18 years or older** to participate.
 
 In this study, you will:
 - Enter your Prolific ID,
 - Answer two short attention-check questions,
 - Select **one topic** that best matches something you have encountered recently,
-- Read a short **online thread** (a post and a comment) in which an entrepreneur **shares** their experience,
-- Answer questions about **how you would feel** if you were the entrepreneur who posted the thread and you had just read the comment.
+- Read a short **online thread** (a post and a comment) in which an entrepreneur **shares their experience**,
+- Answer questions about **how you would feel** if you were the entrepreneur who posted the thread.
 
 The study will take approximately **5–8 minutes**.
 
@@ -676,6 +532,9 @@ De-identified data may be shared with other researchers for academic purposes.
 
 There are **no known risks** associated with this study and no direct benefits to you.
 You will receive compensation **as described on Prolific** for completing the study.
+
+For scientific reasons, full details about the research purpose cannot be provided at this time.
+You will be **fully debriefed** after completing the study.
 
 If you have any questions about our research, please contact our team member Hongfei Li (Email: hongfei.li@cuhk.edu.hk) from CUHK.
 """
@@ -687,12 +546,18 @@ If you have any questions about our research, please contact our team member Hon
     elapsed = int(time.time() - st.session_state.consent_start_ts)
     remaining = max(0, MIN_SECONDS_CONSENT - elapsed)
 
-    st.caption(f"Please stay on this page for at least {MIN_SECONDS_CONSENT} seconds. Remaining: {remaining}s")
+    countdown = st.empty()
+    countdown.caption(
+        f"Please stay on this page for at least {MIN_SECONDS_CONSENT} seconds. Remaining: {remaining}s"
+    )
+
+    if remaining > 0:
+        st.button("I agree and continue", disabled=True)
+        time.sleep(1)
+        st.rerun()
+        return
 
     if st.button("I agree and continue"):
-        if remaining > 0:
-            st.warning(f"Please wait {remaining}s before continuing.")
-            return
         if not agree:
             st.warning("You must agree to participate before continuing.")
             return
@@ -701,23 +566,25 @@ If you have any questions about our research, please contact our team member Hon
         st.session_state.scroll_top_next = True
         st.rerun()
 
-
 def pid_page():
     render_banner()
-    st.title("Welcome!")
-    st.markdown("Please enter your **Prolific ID** to begin.")
+    st.title("Prolific ID")
 
-    prefill = get_query_param("PROLIFIC_PID") or ""
-    pid = st.text_input("Prolific ID", value=prefill)
+    # Try URL param
+    qp = get_query_param("PROLIFIC_PID")
+    if qp and not st.session_state.get("prolific_id"):
+        st.session_state.prolific_id = qp.strip()
 
+    pid = st.text_input("Please enter your Prolific ID:", value=st.session_state.get("prolific_id") or "")
     if st.button("Confirm"):
         pid_clean = (pid or "").strip()
         if not pid_clean:
-            st.error("Please enter your Prolific ID.")
+            st.error("Please enter a valid Prolific ID.")
             return
 
         st.session_state.prolific_id = pid_clean
-        log_event("session_start", payload={"pid": pid_clean, "session_id": st.session_state.session_id})
+        log_event("session_start", title="pid_confirmed", payload={"pid": pid_clean, "session_id": st.session_state.session_id})
+
         st.session_state.stage = "practice"
         st.session_state.scroll_top_next = True
         st.rerun()
@@ -725,10 +592,10 @@ def pid_page():
 
 def practice_page():
     render_banner()
-    st.title("PRACTICE QUESTIONS")
+    st.title("ATTENTION CHECK")
 
     st.markdown(
-        "Before starting, please answer the practice questions below. "
+        "Before starting, please answer the questions below. "
         "These questions help ensure responses are attentive."
     )
 
@@ -769,6 +636,7 @@ def practice_page():
             "passed": passed,
         },
     )
+
     st.session_state.attention_attempt_history.append(
         {
             "attempt": attempt_n,
@@ -782,14 +650,11 @@ def practice_page():
     )
 
     if passed:
-        # Randomly assign to Business vs Worklife balance (once)
+        # Randomly assign participant to ONE topic group (Business vs Worklife balance)
         if not st.session_state.get("assigned_category"):
-            st.session_state.assigned_category = random.choice(list(TOPIC_GROUPS.keys()))
-            log_event(
-                "category_assigned",
-                title=st.session_state.assigned_category,
-                payload={"assigned_category": st.session_state.assigned_category},
-            )
+            assigned = random.choice(list(TOPIC_GROUPS.keys()))
+            st.session_state.assigned_category = assigned
+            log_event("category_assigned", title=assigned, payload={"assigned_category": assigned, "method": "random_after_attention"})
 
         st.session_state.stage = "topic_select"
         st.session_state.scroll_top_next = True
@@ -817,30 +682,29 @@ def failed_attention_page():
     render_banner()
     st.title("Not qualified")
     st.error(
-        "Really sorry, but you failed the attention check twice and are not qualified for this study. "
-        "You may close this window now."
+        "Really sorry, but you failed the attention check twice and are not qualified to continue this study."
     )
+    st.caption("You may now close this tab.")
 
 
 def topic_select_page():
     render_banner()
-    if st.session_state.pop("scroll_top_next", False):
-        scroll_to_top_once()
-
-    assigned = st.session_state.get("assigned_category")
-    if assigned not in TOPIC_GROUPS:
-        # Safety net: assign if somehow missing
-        assigned = random.choice(list(TOPIC_GROUPS.keys()))
-        st.session_state.assigned_category = assigned
-        log_event("category_assigned", title=assigned, payload={"assigned_category": assigned})
-
     st.title("Topic selection")
 
     st.markdown(
-        "To help you immerse in the scenario, please select the **one topic** that best matches something you have encountered recently."
+        "**Task:** Please select the **one topic** that best matches something you have encountered recently."
     )
-    st.markdown(f"**Assigned topic area:** {html.escape(assigned)}")
 
+    assigned = st.session_state.get("assigned_category")
+    if not assigned:
+        # Fallback (shouldn't happen if attention check passed)
+        assigned = random.choice(list(TOPIC_GROUPS.keys()))
+        st.session_state.assigned_category = assigned
+        log_event("category_assigned", title=assigned, payload={"assigned_category": assigned, "method": "fallback"})
+
+    st.caption(f"You have been assigned to topics in the area: **{assigned}**")
+
+    # Load availability info (optional)
     threads, source = get_threads_data()
     st.session_state["_threads_source"] = source
 
@@ -850,9 +714,8 @@ def topic_select_page():
     if not threads:
         st.info(
             f"⚠️ Topic CSV not loaded ({source}). "
-            "For researchers: place the CSV next to this app as one of: "
-            + ", ".join(DEFAULT_THREADS_CSV_CANDIDATES)
-            + " or set TOPIC_CSV_PATH in Streamlit secrets."
+            "For researchers: place the CSV next to this app as 'topic_threads.csv' "
+            "or set TOPIC_CSV_PATH in Streamlit secrets."
         )
         uploaded = st.file_uploader("Upload topic CSV (researcher only)", type=["csv"])
         if uploaded is not None:
@@ -865,15 +728,14 @@ def topic_select_page():
             st.error("Please select one topic before continuing.")
             return
 
+        st.session_state.chosen_category = assigned
         st.session_state.chosen_subtopic = sub
 
-        # reset any previous thread/survey state
+        # reset any previous thread selection
         st.session_state.selected_thread = None
         st.session_state.exp_view_start_ts = None
-        st.session_state.thread_read_elapsed_seconds = None
-        st.session_state.survey_step = 1
-        st.session_state.survey_answers = {}
 
+        # Reset logging flags if participant goes back and re-selects a topic
         st.session_state.pop("_logged_thread_shown", None)
 
         log_event(
@@ -891,6 +753,140 @@ def topic_select_page():
         st.rerun()
 
 
+def experiment_page():
+    render_banner()
+    if st.session_state.pop("scroll_top_next", False):
+        scroll_to_top_once()
+
+    subtopic = st.session_state.get("chosen_subtopic")
+    if not subtopic:
+        st.error("No topic selected. Please go back and select a topic.")
+        if st.button("Back to topic selection"):
+            st.session_state.stage = "topic_select"
+            st.session_state.scroll_top_next = True
+            st.rerun()
+        return
+
+    thread = ensure_thread_selected()
+    if not thread:
+        source = st.session_state.get("_threads_source", "unknown")
+        missing = st.session_state.get("_threads_missing_topic")
+        if missing:
+            st.error(f"No thread found in CSV for topic: {missing}")
+        else:
+            st.error(f"Could not load topic threads CSV ({source}).")
+        if st.button("Back to topic selection"):
+            st.session_state.stage = "topic_select"
+            st.session_state.scroll_top_next = True
+            st.rerun()
+        return
+
+    # Log once when the thread is shown
+    if not st.session_state.get("_logged_thread_shown"):
+        log_event(
+            "thread_shown",
+            title=thread.get("thread_id", ""),
+            payload={
+                "assigned_category": st.session_state.get("assigned_category"),
+                "chosen_subtopic": subtopic,
+                "thread_id": thread.get("thread_id"),
+                "thread_source": thread.get("source"),
+                "post_title": thread.get("title"),
+            },
+        )
+        st.session_state["_logged_thread_shown"] = True
+
+    st.markdown(
+        f"""
+<div style="font-weight:800; font-size:1.05rem; margin-bottom:8px;">
+  Below, you will read a thread posted by
+  <span class="emph">{html.escape(POSTED_BY_NAME)}</span>
+  on social media about
+  <span class="emph">{html.escape(str(subtopic))}</span>.
+</div>
+<div style="margin: 6px 0 10px 0; font-weight:700;">
+  Task: Please read the thread and the comment carefully.
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    # Thread content
+    render_thread_context(thread, subtopic, show_post_body=True)
+
+    st.markdown("---")
+
+    # Timing gate (20s) with live countdown
+    if st.session_state.exp_view_start_ts is None:
+        st.session_state.exp_view_start_ts = time.time()
+
+    elapsed = int(time.time() - st.session_state.exp_view_start_ts)
+    remaining = max(0, MIN_SECONDS_THREAD - elapsed)
+
+    countdown = st.empty()
+    countdown.caption(
+        f"Please stay on this page for at least {MIN_SECONDS_THREAD} seconds. Remaining: {remaining}s"
+    )
+
+    if remaining > 0:
+        st.button("Continue to survey", disabled=True)
+        time.sleep(1)
+        st.rerun()
+        return
+
+    if st.button("Continue to survey"):
+        st.session_state.thread_read_elapsed_seconds = elapsed
+
+        log_event(
+            "thread_read_complete",
+            title=thread.get("thread_id", ""),
+            payload={
+                "elapsed_seconds": elapsed,
+                "min_required": MIN_SECONDS_THREAD,
+                "chosen_subtopic": subtopic,
+            },
+        )
+
+        st.session_state.stage = "survey"
+        st.session_state.survey_step = 1
+        st.session_state.scroll_top_next = True
+        st.rerun()
+
+
+def survey_page():
+    render_banner()
+    if st.session_state.pop("scroll_top_next", False):
+        scroll_to_top_once()
+
+    step = int(st.session_state.get("survey_step", 1))
+
+    # Show the comment at the top of the survey so participants can revisit it while answering.
+    # We do NOT show it on the final page (general questions).
+    thread = st.session_state.get("selected_thread") or ensure_thread_selected()
+    if step == 1 and thread:
+        st.markdown(
+            """
+<div style="font-weight:800; font-size:1.0rem; margin-bottom:8px;">
+  Comment (for reference while answering)
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+        render_comment(thread.get("comment", ""))
+        with st.expander("View original post", expanded=False):
+            render_post_meta()
+            render_post_content(thread.get("title", ""), thread.get("body", ""))
+        st.markdown("---")
+
+    st.title(f"Survey ({step}/2)")
+    st.caption("Please answer all questions.")
+
+    if step == 1:
+        survey_step1()
+    else:
+        survey_step2()
+
+
 def survey_step1():
     st.markdown(
         """
@@ -898,44 +894,41 @@ Please imagine that you are the entrepreneur **who posted the thread** and that 
 Indicate how you would feel right now.
 
 Please answer each item according to the following scale:  
-**1 = Definitely False, 2 = Mostly False, 3 = Somewhat False, 4 = Slightly False, 5 = Slightly True, 6 = Somewhat True, 7 = Mostly True, 8 = Definitely True.**
+**1 = Definitely False, 2 = Mostly False, 3 = Somewhat False, 4 = Slightly False, 5 = Slightly True, 6 = Somewhat True, 7 = Mostly True, and 8 = Definitely True.**
 """
     )
 
     with st.form("survey_step1_form"):
         answers: Dict[str, Any] = {}
 
-        st.markdown("**Hope**")
         hope_items = [
-            "If I were the entrepreneur, this post would enable me to think of many ways to get out of the current difficulties in the business.",
-            "If I were the entrepreneur, this post would enable me to energetically pursue my business goals.",
-            "If I were the entrepreneur, this post would make me feel that there are many ways around any problem I am currently facing in my business.",
-            "If I were the entrepreneur, this post would make me feel pretty successful in my business.",
-            "If I were the entrepreneur, this post would enable me to think of many ways to reach my current business goals.",
-            "If I were the entrepreneur, this post would make me feel that I am meeting the business goals I have set for myself.",
+            "If I were the entrepreneur, this response would enable me to think of many ways to get out of the current difficulties in the business.",
+            "If I were the entrepreneur, this response would enable me to energetically pursue my business goals.",
+            "If I were the entrepreneur, this response would make me feel that there are many ways around any problem I am currently facing in my business.",
+            "If I were the entrepreneur, this response would make me feel pretty successful in my business.",
+            "If I were the entrepreneur, this response would enable me to think of many ways to reach my current business goals.",
+            "If I were the entrepreneur, this response would make me feel that I am meeting the business goals I have set for myself.",
         ]
         for i, q in enumerate(hope_items, start=1):
             answers[f"hope_{i}"] = likert8(q, f"hope_{i}")
 
         st.divider()
 
-        st.markdown("**Loneliness**")
         lonely_items = [
-            "If I were the entrepreneur, this post would make me feel that I lack companionship.",
-            "If I were the entrepreneur, this post would make me feel that there is no one I can turn to.",
-            "If I were the entrepreneur, this post would make me feel like an outgoing person.",
-            "If I were the entrepreneur, this post would make me feel left out.",
-            "If I were the entrepreneur, this post would make me feel isolated from others.",
-            "If I were the entrepreneur, this post would make me feel that I could find companionship when I want it.",
-            "If I were the entrepreneur, this post would make me feel unhappy about being so withdrawn.",
-            "If I were the entrepreneur, this post would make me feel that people are around me but not really with me.",
+            "If I were the entrepreneur, this response would make me feel that I lack companionship.",
+            "If I were the entrepreneur, this response would make me feel that there is no one I can turn to.",
+            "If I were the entrepreneur, this response would make me feel like an outgoing person.",
+            "If I were the entrepreneur, this response would make me feel left out.",
+            "If I were the entrepreneur, this response would make me feel isolated from others.",
+            "If I were the entrepreneur, this response would make me feel that I could find companionship when I want it.",
+            "If I were the entrepreneur, this response would make me feel unhappy about being so withdrawn.",
+            "If I were the entrepreneur, this response would make me feel that people are around me but not really with me.",
         ]
         for i, q in enumerate(lonely_items, start=1):
             answers[f"lonely_{i}"] = likert8(q, f"lonely_{i}")
 
         st.divider()
 
-        st.markdown("**Perceived supportedness**")
         ps_items = [
             "This response made me feel understood.",
             "This response made me feel supported.",
@@ -946,7 +939,6 @@ Please answer each item according to the following scale:
 
         st.divider()
 
-        st.markdown("**Level of negativity of venting posts**")
         answers["vent_negativity"] = likert8(
             "To what extent does this post express frustrations and negative experiences?",
             "vent_negativity",
@@ -983,7 +975,7 @@ def survey_step2():
 
     with st.form("survey_step2_form"):
         mc_topic = st.radio(
-            "**The post was mainly about:**",
+            "**The response was mainly about:**",
             ["Work-life balance", "Business difficulty"],
             index=None,
             horizontal=True,
@@ -1033,6 +1025,7 @@ def survey_step2():
         st.error("Please complete all required questions: " + ", ".join(missing_fields))
         return
 
+    # Validate numeric
     errs = []
     try:
         by = int(str(birth_year).strip())
@@ -1040,12 +1033,14 @@ def survey_step2():
             errs.append("Birth year must be 1960–2007")
     except Exception:
         errs.append("Birth year must be an integer")
+
     try:
         ey = int(str(ent_years).strip())
         if ey < 0 or ey > 50:
             errs.append("Entrepreneurial experience must be 0–50")
     except Exception:
         errs.append("Entrepreneurial experience must be an integer")
+
     try:
         wy = int(str(work_years).strip())
         if wy < 0 or wy > 50:
@@ -1054,32 +1049,50 @@ def survey_step2():
         errs.append("Work experience must be an integer")
 
     if errs:
-        for e in errs:
-            st.error(e)
+        st.error("Please fix the following: " + "; ".join(errs))
         return
 
-    assigned_category = st.session_state.get("assigned_category")
-    expected_mc_topic = "Business difficulty" if assigned_category == "Business" else "Work-life balance"
-    mc_topic_correct = (mc_topic == expected_mc_topic)
-
+    # Store page2
     st.session_state.survey_answers["page2"] = {
         "manipulation_check_topic": mc_topic,
-        "manipulation_check_expected": expected_mc_topic,
-        "manipulation_check_correct": mc_topic_correct,
-        "demographics": {
+        "birth_year": by,
+        "gender": gender,
+        "education": education,
+        "entrepreneurial_years": ey,
+        "work_years": wy,
+    }
+
+    # Evaluate manipulation check correctness vs assigned category
+    assigned = st.session_state.get("assigned_category")
+    expected = "Business difficulty" if assigned == "Business" else "Work-life balance"
+    mc_correct = (mc_topic == expected)
+
+    log_event(
+        "survey_page2_complete",
+        title="mc+demographics",
+        payload={
+            "manipulation_check": mc_topic,
+            "assigned_category": assigned,
+            "expected": expected,
+            "correct": mc_correct,
             "birth_year": by,
             "gender": gender,
             "education": education,
             "entrepreneurial_years": ey,
             "work_years": wy,
         },
-    }
+    )
 
+    # Final payload
     final_payload = {
         "pid": st.session_state.get("prolific_id"),
         "session_id": st.session_state.get("session_id"),
-        "assigned_category": assigned_category,
-        "chosen_subtopic": st.session_state.get("chosen_subtopic"),
+        "variant": CONDITION,
+        "assigned_category": assigned,
+        "topic": {
+            "category": st.session_state.get("chosen_category"),
+            "subtopic": st.session_state.get("chosen_subtopic"),
+        },
         "thread": st.session_state.get("selected_thread", {}),
         "attention": {
             "attempts": st.session_state.get("practice_attempts"),
@@ -1099,131 +1112,18 @@ def survey_step2():
     st.rerun()
 
 
-def experiment_page():
-    """
-    Thread + Comment + Survey are presented on the same page (in two survey steps),
-    so participants can revisit the comment while answering.
-    """
-    render_banner()
-    if st.session_state.pop("scroll_top_next", False):
-        scroll_to_top_once()
-
-    subtopic = st.session_state.get("chosen_subtopic")
-    if not subtopic:
-        st.error("No topic selected. Please go back and select a topic.")
-        if st.button("Back to topic selection"):
-            st.session_state.stage = "topic_select"
-            st.session_state.scroll_top_next = True
-            st.rerun()
-        return
-
-    thread = ensure_thread_selected()
-    if not thread:
-        source = st.session_state.get("_threads_source", "unknown")
-        missing = st.session_state.get("_threads_missing_topic")
-        if missing:
-            st.error(f"No thread found in CSV for topic: {missing}")
-        else:
-            st.error(f"Could not load topic threads CSV ({source}).")
-        if st.button("Back to topic selection"):
-            st.session_state.stage = "topic_select"
-            st.session_state.scroll_top_next = True
-            st.rerun()
-        return
-
-    # Log once when the thread is shown
-    if not st.session_state.get("_logged_thread_shown"):
-        log_event(
-            "thread_shown",
-            title=thread.get("thread_id", ""),
-            payload={
-                "assigned_category": st.session_state.get("assigned_category"),
-                "chosen_subtopic": subtopic,
-                "thread_id": thread.get("thread_id"),
-                "link_id": thread.get("link_id"),
-                "thread_source": thread.get("source"),
-                "post_title": thread.get("title"),
-            },
-        )
-        st.session_state["_logged_thread_shown"] = True
-
-    # Prompt line with emphasis
-    st.markdown(
-        f"""
-<div style="font-weight:800; font-size:1.05rem; margin-bottom:8px;">
-  Below, you will read a thread posted by
-  <span class="emph">{html.escape(POSTED_BY_NAME)}</span>
-  on social media about
-  <span class="emph">{html.escape(str(subtopic))}</span>.
-</div>
-<div class="muted" style="margin-bottom:12px;">
-  <span style="font-weight:800;">Task:</span> Please read the thread and the comment below. After reading, answer the questions that follow.
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    render_post_meta()
-    render_post_content(thread.get("title", ""), thread.get("body", ""))
-
-    st.divider()
-
-    st.markdown('<div class="comment-label">Comment</div>', unsafe_allow_html=True)
-    render_comment(thread.get("comment", ""))
-
-    st.markdown("---")
-
-    # Timing gate (20s) with a live countdown (enforced only once).
-    if st.session_state.exp_view_start_ts is None:
-        st.session_state.exp_view_start_ts = time.time()
-
-    if st.session_state.thread_read_elapsed_seconds is None:
-        countdown = st.empty()
-        while True:
-            elapsed = int(time.time() - st.session_state.exp_view_start_ts)
-            remaining = max(0, MIN_SECONDS_THREAD - elapsed)
-            if remaining <= 0:
-                countdown.caption("Minimum reading time completed. You may now answer the survey questions below.")
-                st.session_state.thread_read_elapsed_seconds = elapsed
-                log_event(
-                    "thread_read_complete",
-                    title=thread.get("thread_id", ""),
-                    payload={
-                        "elapsed_seconds": elapsed,
-                        "min_required": MIN_SECONDS_THREAD,
-                        "chosen_subtopic": subtopic,
-                    },
-                )
-                break
-            countdown.caption(
-                f"Please stay on this page for at least {MIN_SECONDS_THREAD} seconds. Remaining: {remaining}s"
-            )
-            time.sleep(1)
-
-        st.markdown("---")
-    # Survey steps (thread+comment remain visible above)
-    st.markdown("**Survey**")
-    if st.session_state.survey_step == 1:
-        survey_step1()
-    else:
-        survey_step2()
-
-
 def done_page():
     render_banner()
-    st.title("Thank you!")
-    st.success("You have completed the study. You may close this window now.")
+    st.title("Finished")
+    st.success("Thanks — your responses have been recorded.")
+    st.caption("You may now close this tab.")
 
 
 # =============================================================================
-# MAIN ROUTER
+# ROUTER
 # =============================================================================
 def main():
     stage = st.session_state.stage
-
-    # Optional debug box for researchers
-    if st.secrets.get("SHOW_DEBUG", False) if hasattr(st, "secrets") else False:
-        render_debug_box()
 
     if stage == "consent":
         consent_page()
@@ -1243,8 +1143,44 @@ def main():
     if stage == "experiment":
         experiment_page()
         return
-    done_page()
+    if stage == "survey":
+        survey_page()
+        return
+    if stage == "done":
+        done_page()
+        return
+
+    # fallback
+    st.session_state.stage = "consent"
+    st.rerun()
 
 
-if __name__ == "__main__":
-    main()
+# =============================================================================
+# SESSION INIT
+# =============================================================================
+st.session_state.setdefault("session_id", str(uuid.uuid4()))
+st.session_state.setdefault("start_time", utc_now_iso())
+st.session_state.setdefault("stage", "consent")
+
+st.session_state.setdefault("prolific_id", None)
+st.session_state.setdefault("practice_attempts", 0)
+st.session_state.setdefault("attention_attempt_history", [])
+
+# Random assignment + topic choice
+st.session_state.setdefault("assigned_category", None)
+st.session_state.setdefault("chosen_category", None)
+st.session_state.setdefault("chosen_subtopic", None)
+
+# Thread selection + timers
+st.session_state.setdefault("selected_thread", None)
+st.session_state.setdefault("exp_view_start_ts", None)
+st.session_state.setdefault("thread_read_elapsed_seconds", None)
+
+# Survey
+st.session_state.setdefault("survey_step", 1)
+st.session_state.setdefault("survey_answers", {})
+
+# Optional researcher upload
+st.session_state.setdefault("uploaded_threads_csv_bytes", None)
+
+main()
