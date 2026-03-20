@@ -441,10 +441,10 @@ def render_consent_page():
     st.markdown("""
     **Study Overview and Consent**
 
-    You are invited to participate in a research study about **entrepreneurial interactions**.
+    You are invited to participate in a research study about **how entrepreneurs interact on social media**.
     You must be **18 years or older** to participate.
 
-    In this study, you will read a short post from a Reddit discussion thread in which an entrepreneur describes their experience
+    In this study, you will read a short post from a Reddit discussion thread in which an entrepreneur shares their experience
     (e.g., business challenges or work–life balance issues). After reading the post, you will be asked
     to **write a brief comment as if replying in the thread** and then **answer several questions** about your reactions.
 
