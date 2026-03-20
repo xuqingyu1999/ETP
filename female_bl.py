@@ -57,7 +57,7 @@ Running a business is difficult! I am a small business owner. For the last two y
 
 I’ve built up around 20 reviews on yelp which are all 5 star reviews.  Unfortunately 14 out of the 20 are hidden and not shown. 
 
-They call me every other day even though I’ve told them again and again that they can email me offers. I don’t have time to answer disguised calls from reps all day. I understand how yelp works... I understand that i got more customer views when I was advertising with yelp... i understand how to setup everything on yelp and do not need any assistance... 
+Yelp call me every other day even though I’ve told them again and again that they can email me offers. I don’t have time to answer disguised calls from reps all day. I understand how yelp works... I understand that i got more customer views when I was advertising with yelp... i understand how to setup everything on yelp and do not need any assistance... 
 
 The harassment, call number disguising, the taking down of reviews, removing service locations... it’s not good business. Now today, I log in... and it keeps clearing my services list. I’m wondering how many others this happens to. Google Reviews is only going to improve, and yelp will be nothing... I’m done with them.
 """.strip()
@@ -443,10 +443,10 @@ def render_consent_page():
     st.markdown("""
     **Study Overview and Consent**
 
-    You are invited to participate in a research study about **entrepreneurial interactions**.
+    You are invited to participate in a research study about **how entrepreneurs interact on social media**.
     You must be **18 years or older** to participate.
 
-    In this study, you will read a short post from a Reddit discussion thread in which an entrepreneur describes their experience
+    In this study, you will read a short post from a Reddit discussion thread in which an entrepreneur shares their experience
     (e.g., business challenges or work–life balance issues). After reading the post, you will be asked
     to **write a brief comment as if replying in the thread** and then **answer several questions** about your reactions.
 
