@@ -466,12 +466,20 @@ def render_consent_page():
     agree = st.checkbox("I am at least 18 years old and I agree to participate in this study.")
 
     st.session_state.setdefault("instr_start_ts", time.time())
-
     elapsed = int(time.time() - st.session_state.instr_start_ts)
     remaining = max(0, MIN_SECONDS - elapsed)
+    
+    countdown = st.empty()
+    countdown.caption(
+        f"Please stay on this page for at least {MIN_SECONDS} seconds. Remaining: {remaining}s"
+    )
+    
+    if remaining > 0:
+        st.button("I agree and continue", disabled=True, key="consent_continue")
+        time.sleep(1)
+        st.rerun()
+        return
 
-    st.caption(f"Please stay on this page for at least {MIN_SECONDS} seconds. "
-               f"Remaining: {remaining}s")
 
     if st.button("I agree and continue"):
         if remaining > 0:
