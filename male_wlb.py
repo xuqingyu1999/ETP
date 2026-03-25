@@ -48,7 +48,7 @@ CONDITION = "M_WLB"
 
 SUBREDDIT = "r/business"
 DAYS_AGO = 7
-AUTHOR_USERNAME = "HiddenBadger74"
+AUTHOR_USERNAME = "IronBadger87"
 POSTED_BY_NAME = "David"
 
 POST_TITLE = "My wife told me this on my birthday (yesterday) and I think – I need to improve my work-life balance."
@@ -333,7 +333,7 @@ def log_event(event_type: str, *, title: str = "", payload: Optional[Dict[str, A
 # =============================================================================
 APP_DIR = Path(__file__).parent
 REDDIT_LOGO_PATH = APP_DIR / "reddit_logo.png"
-AVATAR_PATH = APP_DIR / "avatar.jpg"
+AVATAR_PATH = APP_DIR / "m_avatar.png"
 
 
 def render_banner():
@@ -658,10 +658,10 @@ def count_words(text: str) -> int:
 def experiment_page():
     render_banner()
 
-    st.markdown(
-        f"<div style='font-weight:700;'>Below, you will read a thread posted by <span class='emph'>{POSTED_BY_NAME}</span> on social media about <span class='emph'>{TOPIC_LABEL}</span>.</div>",
-        unsafe_allow_html=True,
-    )
+    # st.markdown(
+    #     f"<div style='font-weight:700;'>Below, you will read a thread posted by <span class='emph'>{POSTED_BY_NAME}</span> on social media about <span class='emph'>{TOPIC_LABEL}</span>.</div>",
+    #     unsafe_allow_html=True,
+    # )
     render_post_meta()
 
     st.title(POST_TITLE)
@@ -671,7 +671,7 @@ def experiment_page():
     st.subheader("Add your comment")
 
     st.markdown(
-        f"**Task:** How would you comment on **{POSTED_BY_NAME}**'s thread about **{PRONOUN_POSSESSIVE}** **{TOPIC_LABEL}**?"
+        f"**Task:** How would you comment on the entrepreneur's thread about **{PRONOUN_POSSESSIVE}** **{TOPIC_LABEL}**?"
     )
     st.caption(
         "Note: Please write the comment independently, without using AI assistance. Responses that do not reflect independent effort may not qualify for the reward."
