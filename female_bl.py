@@ -335,7 +335,7 @@ def log_event(event_type: str, *, title: str = "", payload: Optional[Dict[str, A
 # =============================================================================
 APP_DIR = Path(__file__).parent
 REDDIT_LOGO_PATH = APP_DIR / "reddit_logo.png"
-AVATAR_PATH = APP_DIR / "avatar.jpg"
+AVATAR_PATH = APP_DIR / "f_avatar.png"
 
 
 def render_banner():
@@ -665,7 +665,6 @@ def experiment_page():
     render_banner()
 
     st.markdown(
-        f"<div style='font-weight:700;'>Below, you will read a thread posted by <span class='emph'>{POSTED_BY_NAME}</span> on social media about <span class='emph'>{TOPIC_LABEL}</span>.</div>",
         unsafe_allow_html=True,
     )
     render_post_meta()
