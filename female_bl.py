@@ -664,9 +664,10 @@ def count_words(text: str) -> int:
 def experiment_page():
     render_banner()
 
-    st.markdown(
-        unsafe_allow_html=True,
-    )
+    # st.markdown(
+    #     f"<div style='font-weight:700;'>Below, you will read a thread posted by <span class='emph'>{POSTED_BY_NAME}</span> on social media about <span class='emph'>{TOPIC_LABEL}</span>.</div>",
+    #     unsafe_allow_html=True,
+    # )
     render_post_meta()
 
     st.title(POST_TITLE)
