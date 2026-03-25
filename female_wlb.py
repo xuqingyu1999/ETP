@@ -48,7 +48,7 @@ CONDITION = "F_WLB"
 
 SUBREDDIT = "r/business"
 DAYS_AGO = 7
-AUTHOR_USERNAME = "HiddenBadger74"
+AUTHOR_USERNAME = "LunarMarten21"
 POSTED_BY_NAME = "Maria"
 
 POST_TITLE = "My husband told me this on my birthday (yesterday) and I think – I need to improve my work-life balance."
@@ -676,7 +676,7 @@ def experiment_page():
     st.subheader("Add your comment")
 
     st.markdown(
-        f"**Task:** How would you comment on **{POSTED_BY_NAME}**'s thread about **{PRONOUN_POSSESSIVE}** **{TOPIC_LABEL}**?"
+        f"**Task:** How would you comment on the entrepreneur's thread about **{PRONOUN_POSSESSIVE}** **{TOPIC_LABEL}**?"
     )
     st.caption(
         "Note: Please write the comment independently, without using AI assistance. Responses that do not reflect independent effort may not qualify for the reward."
