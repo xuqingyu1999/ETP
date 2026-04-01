@@ -2,6 +2,7 @@
 import base64
 import csv
 import html
+import hashlib
 import io
 import json
 import os
@@ -10,7 +11,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -21,7 +22,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # =============================================================================
 # APP SETTINGS
 # =============================================================================
-CONDITION = "TOPIC_FEELINGS_V2"  # logged as "variant" in Google Sheet
+CONDITION = "TOPIC_FEELINGS_V3_RANDOM_STORY_4COMMENTS"  # logged as "variant" in Google Sheet
 
 # Neutral identities shown in the prompt (not necessarily inside the post text)
 POSTED_BY_NAME = "Alex"
@@ -56,7 +57,7 @@ TOPIC_GROUPS: Dict[str, List[str]] = {
         "Growth challenges",
         "Employee",
         "Legal",
-        #"Operations",
+        "Operations",
     ],
     "Worklife balance": [
         "Family responsibilities",
@@ -347,7 +348,8 @@ def render_thread_context(thread: Dict[str, str], subtopic: str, *, show_post_bo
 
 
 # =============================================================================
-# CSV LOADER
+
+# CSV LOADER + RANDOM ASSIGNMENT (NO PARTICIPANT CHOICE)
 # =============================================================================
 def _pick_column(keys: List[str], candidates: List[str]) -> Optional[str]:
     lower_map = {k.lower().strip(): k for k in keys}
@@ -367,18 +369,43 @@ def _decode_bytes(b: bytes) -> str:
     return b.decode("utf-8", errors="replace")
 
 
-def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> List[Dict[str, str]]:
+def _to_bool(x: Any) -> Optional[bool]:
+    if x is None:
+        return None
+    s = str(x).strip().lower()
+    if s in ("true", "t", "1", "yes", "y"):
+        return True
+    if s in ("false", "f", "0", "no", "n"):
+        return False
+    return None
+
+
+def _stable_story_id(topic: str, title: str, body: str) -> str:
+    base = f"{topic}\n{title}\n{body}".encode("utf-8", errors="ignore")
+    return hashlib.sha1(base).hexdigest()[:12]
+
+
+def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> List[Dict[str, Any]]:
     """
-    Supports:
-      - Named columns (recommended): topic, post_title, post_body, comment, link_id (optional)
-      - Alternative names: Topic/Post/Comment; post_md; comment_md; etc.
-      - If unnamed/unknown but exactly 3 columns: assumes topic, post, comment by order.
+    Expected (recommended) columns for this experiment:
+      - topic
+      - post_title
+      - post_body
+      - comment
+      - informational_support (low/high)
+      - emotional_support (low/high)
+      - support_combo (e.g., low_low, low_high, high_low, high_high)
+      - is_original_comment (True/False)
+
+    Backward-compatible with older 3-column format: topic, post, comment.
     """
     if uploaded_bytes is not None:
         text = _decode_bytes(uploaded_bytes)
+        source_name = "uploaded"
     else:
         with open(path, "rb") as fh:
             text = _decode_bytes(fh.read())
+        source_name = os.path.basename(path)
 
     reader = csv.DictReader(io.StringIO(text))
     dict_rows = list(reader)
@@ -393,7 +420,12 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
     body_col = _pick_column(keys, ["post_body", "body"])
     # fallback combined post column (3-col format)
     post_col = _pick_column(keys, ["post", "thread", "post_md", "post_text", "postcontent"])
-    link_col = _pick_column(keys, ["link_id", "id", "thread_id", "reddit_id"])
+    link_col = _pick_column(keys, ["link_id", "id", "thread_id", "reddit_id", "story_id"])
+
+    info_col = _pick_column(keys, ["informational_support", "info_support", "informational"])
+    emo_col = _pick_column(keys, ["emotional_support", "emo_support", "emotional"])
+    combo_col = _pick_column(keys, ["support_combo", "comment_type", "support_type", "combo"])
+    orig_col = _pick_column(keys, ["is_original_comment", "original_comment", "is_original"])
 
     # If exactly 3 columns and any required missing, assume order.
     if (topic_col is None or comment_col is None or (title_col is None and body_col is None and post_col is None)) and len(keys) == 3:
@@ -401,8 +433,8 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
         post_col = post_col or keys[1]
         comment_col = comment_col or keys[2]
 
-    threads: List[Dict[str, str]] = []
-    for r in dict_rows:
+    threads: List[Dict[str, Any]] = []
+    for idx, r in enumerate(dict_rows, start=1):
         topic = (r.get(topic_col or "", "") or "").strip()
         if not topic:
             continue
@@ -415,18 +447,28 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
         else:
             post_raw = (r.get(post_col or "", "") or "").strip()
             if post_raw:
-                # If the "post" is a single blob, first line is title
                 parts = post_raw.splitlines()
                 title = (parts[0] or "").strip()
                 body = "\n".join(parts[1:]).strip() if len(parts) > 1 else ""
 
         comment = (r.get(comment_col or "", "") or "").strip()
-        link_id = (r.get(link_col or "", "") or "").strip() if link_col else ""
 
-        # Basic cleanup (avoid weird CRs)
+        # Normalize line breaks
         title = title.replace("\r\n", "\n").replace("\r", "\n")
         body = body.replace("\r\n", "\n").replace("\r", "\n")
         comment = comment.replace("\r\n", "\n").replace("\r", "\n")
+
+        # Comment meta (optional)
+        info = (r.get(info_col, "") or "").strip().lower() if info_col else ""
+        emo = (r.get(emo_col, "") or "").strip().lower() if emo_col else ""
+        combo = (r.get(combo_col, "") or "").strip().lower() if combo_col else ""
+        is_orig = _to_bool(r.get(orig_col)) if orig_col else None
+
+        link_id = (r.get(link_col, "") or "").strip() if link_col else ""
+
+        story_id = link_id or _stable_story_id(topic, title, body)
+        # comment variant id should differentiate the 4 comments under the same story
+        comment_variant_id = f"{story_id}::{combo or f'v{idx}'}"
 
         threads.append(
             {
@@ -434,8 +476,14 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
                 "title": title,
                 "body": body,
                 "comment": comment,
-                "thread_id": link_id or f"{topic}-{len(threads)+1}",
-                "source": os.path.basename(path),
+                "story_id": story_id,
+                "thread_id": story_id,  # keep legacy field name for logging/UI
+                "comment_variant_id": comment_variant_id,
+                "informational_support": info,
+                "emotional_support": emo,
+                "support_combo": combo,
+                "is_original_comment": is_orig,
+                "source": source_name,
             }
         )
 
@@ -443,43 +491,121 @@ def load_threads_csv(path: str, *, uploaded_bytes: Optional[bytes] = None) -> Li
 
 
 @st.cache_data(show_spinner=False)
-def get_threads_data() -> (List[Dict[str, str]], str):
+def get_threads_data() -> Tuple[List[Dict[str, Any]], str]:
     """Load threads from a path or from an uploaded CSV in session_state."""
-    # Optional: researcher can set a custom path in secrets
-    csv_path = st.secrets.get("TOPIC_CSV_PATH", str(Path(__file__).parent / "topic_threads.csv"))
+    # 1) Path from secrets/env (preferred)
+    default_path = str(Path(__file__).parent / "topic_threads_4_comments_low_low_revised.csv")
+    csv_path = st.secrets.get("TOPIC_CSV_PATH", default_path)
+
+    # 2) If the default path doesn't exist, fall back to the older filename
+    p = Path(csv_path)
+    if not p.is_absolute():
+        p = (Path(__file__).parent / p).resolve()
+
+    if not p.exists():
+        legacy = (Path(__file__).parent / "topic_threads.csv").resolve()
+        if legacy.exists():
+            p = legacy
 
     uploaded = st.session_state.get("uploaded_threads_csv_bytes")
     if uploaded:
         try:
-            return load_threads_csv(csv_path, uploaded_bytes=uploaded), "uploaded"
+            return load_threads_csv(str(p), uploaded_bytes=uploaded), "uploaded"
         except Exception as e:
             return [], f"uploaded_error: {e}"
 
     try:
-        return load_threads_csv(csv_path), csv_path
+        return load_threads_csv(str(p)), str(p)
     except Exception as e:
         return [], f"file_error: {e}"
 
 
-def ensure_thread_selected() -> Optional[Dict[str, str]]:
-    """Randomly select a thread for the chosen subtopic and keep it stable in session_state."""
+def _topic_to_category_map() -> Dict[str, str]:
+    # Case-insensitive mapping
+    m: Dict[str, str] = {}
+    for cat, topics in TOPIC_GROUPS.items():
+        for t in topics:
+            m[str(t).strip().lower()] = cat
+    return m
+
+
+def _assign_random_story_and_comment() -> Optional[Dict[str, Any]]:
+    """Assign scenario (Business vs Worklife), then a story, then 1 of its 4 comment types."""
+    threads, source = get_threads_data()
+    st.session_state["_threads_source"] = source
+
+    if not threads:
+        return None
+
+    topic_to_cat = _topic_to_category_map()
+
+    # Build: category -> story_id -> [variants]
+    cat_story_map: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+    for t in threads:
+        topic = (t.get("topic") or "").strip().lower()
+        cat = topic_to_cat.get(topic)
+        if not cat:
+            continue
+        story_id = t.get("story_id") or t.get("thread_id") or ""
+        if not story_id:
+            continue
+        cat_story_map.setdefault(cat, {}).setdefault(story_id, []).append(t)
+
+    available_cats = [c for c, stories in cat_story_map.items() if stories]
+    if not available_cats:
+        return None
+
+    # 1) Assign scenario group (balanced across the two groups that have data)
+    assigned_cat = st.session_state.get("assigned_category")
+    if assigned_cat not in available_cats:
+        assigned_cat = random.choice(available_cats)
+        st.session_state.assigned_category = assigned_cat
+        log_event(
+            "category_assigned",
+            title=assigned_cat,
+            payload={"assigned_category": assigned_cat, "method": "random"},
+        )
+
+    # 2) Assign a story within that scenario
+    story_groups = cat_story_map[assigned_cat]
+    story_id = random.choice(list(story_groups.keys()))
+    variants = story_groups[story_id]
+
+    # 3) Assign 1 comment type for that story
+    chosen_variant = random.choice(variants)
+
+    # Persist assignment
+    st.session_state.chosen_subtopic = chosen_variant.get("topic")
+    st.session_state.selected_thread = chosen_variant
+    st.session_state.exp_view_start_ts = None
+    st.session_state.thread_read_elapsed_seconds = None
+    st.session_state.pop("_logged_thread_shown", None)
+
+    log_event(
+        "story_assigned",
+        title=str(story_id),
+        payload={
+            "assigned_category": assigned_cat,
+            "topic": chosen_variant.get("topic"),
+            "story_id": story_id,
+            "comment_variant_id": chosen_variant.get("comment_variant_id"),
+            "support_combo": chosen_variant.get("support_combo"),
+            "informational_support": chosen_variant.get("informational_support"),
+            "emotional_support": chosen_variant.get("emotional_support"),
+            "is_original_comment": chosen_variant.get("is_original_comment"),
+            "source": chosen_variant.get("source"),
+        },
+    )
+
+    return chosen_variant
+
+
+def ensure_thread_selected() -> Optional[Dict[str, Any]]:
+    """Ensure one assigned (story + comment type) is fixed for this participant."""
     if st.session_state.get("selected_thread") is not None:
         return st.session_state.selected_thread
 
-    subtopic = st.session_state.get("chosen_subtopic")
-    if not subtopic:
-        return None
-
-    threads, source = get_threads_data()
-    matches = [t for t in threads if (t.get("topic") or "").strip().lower() == str(subtopic).strip().lower()]
-    if not matches:
-        st.session_state["_threads_missing_topic"] = subtopic
-        return None
-
-    chosen = random.choice(matches)
-    st.session_state.selected_thread = chosen
-    return chosen
-
+    return _assign_random_story_and_comment()
 
 # =============================================================================
 # SURVEY WIDGETS
@@ -520,8 +646,7 @@ You must be **18 years or older** to participate.
 In this study, you will:
 - Enter your Prolific ID,
 - Answer two short attention-check questions,
-- Select **one topic** that best matches something you have encountered recently,
-- Read a short **online thread** (a post and a comment) in which an entrepreneur **shares their experience**,
+- You will be randomly assigned to read one short **online thread** (a post and a comment) in which an entrepreneur **shares their experience**,
 - Answer questions about **how you would feel** if you were the entrepreneur who posted the thread.
 
 The study will take approximately **5–8 minutes**.
@@ -650,13 +775,13 @@ def practice_page():
     )
 
     if passed:
-        # Randomly assign participant to ONE topic group (Business vs Worklife balance)
-        if not st.session_state.get("assigned_category"):
-            assigned = random.choice(list(TOPIC_GROUPS.keys()))
-            st.session_state.assigned_category = assigned
-            log_event("category_assigned", title=assigned, payload={"assigned_category": assigned, "method": "random_after_attention"})
+        # Random assignment: scenario (Business vs Worklife balance), story, and comment type
+        thread = ensure_thread_selected()
+        if thread is None:
+            st.error("Could not load the scenario threads CSV. Please contact the researcher.")
+            return
 
-        st.session_state.stage = "topic_select"
+        st.session_state.stage = "experiment"
         st.session_state.scroll_top_next = True
         st.rerun()
         return
@@ -758,28 +883,23 @@ def experiment_page():
     if st.session_state.pop("scroll_top_next", False):
         scroll_to_top_once()
 
-    subtopic = st.session_state.get("chosen_subtopic")
-    if not subtopic:
-        st.error("No topic selected. Please go back and select a topic.")
-        if st.button("Back to topic selection"):
-            st.session_state.stage = "topic_select"
-            st.session_state.scroll_top_next = True
-            st.rerun()
-        return
-
+    # Ensure random assignment exists (scenario, story, and comment type)
     thread = ensure_thread_selected()
     if not thread:
         source = st.session_state.get("_threads_source", "unknown")
-        missing = st.session_state.get("_threads_missing_topic")
-        if missing:
-            st.error(f"No thread found in CSV for topic: {missing}")
-        else:
-            st.error(f"Could not load topic threads CSV ({source}).")
-        if st.button("Back to topic selection"):
-            st.session_state.stage = "topic_select"
-            st.session_state.scroll_top_next = True
+        st.error(f"Could not load scenario threads CSV ({source}).")
+
+        # Optional researcher-only uploader if the CSV is missing on the server
+        uploaded = st.file_uploader("Upload topic CSV (researcher only)", type=["csv"])
+        if uploaded is not None:
+            st.session_state.uploaded_threads_csv_bytes = uploaded.read()
+            st.success("CSV uploaded. Reloading…")
             st.rerun()
         return
+
+    # Derive subtopic from the assigned thread
+    subtopic = thread.get("topic") or st.session_state.get("chosen_subtopic")
+    st.session_state.chosen_subtopic = subtopic
 
     # Log once when the thread is shown
     if not st.session_state.get("_logged_thread_shown"):
@@ -789,7 +909,13 @@ def experiment_page():
             payload={
                 "assigned_category": st.session_state.get("assigned_category"),
                 "chosen_subtopic": subtopic,
+                "story_id": thread.get("story_id") or thread.get("thread_id"),
                 "thread_id": thread.get("thread_id"),
+                "comment_variant_id": thread.get("comment_variant_id"),
+                "support_combo": thread.get("support_combo"),
+                "informational_support": thread.get("informational_support"),
+                "emotional_support": thread.get("emotional_support"),
+                "is_original_comment": thread.get("is_original_comment"),
                 "thread_source": thread.get("source"),
                 "post_title": thread.get("title"),
             },
@@ -843,7 +969,13 @@ def experiment_page():
             payload={
                 "elapsed_seconds": elapsed,
                 "min_required": MIN_SECONDS_THREAD,
+                "assigned_category": st.session_state.get("assigned_category"),
                 "chosen_subtopic": subtopic,
+                "story_id": thread.get("story_id") or thread.get("thread_id"),
+                "comment_variant_id": thread.get("comment_variant_id"),
+                "support_combo": thread.get("support_combo"),
+                "informational_support": thread.get("informational_support"),
+                "emotional_support": thread.get("emotional_support"),
             },
         )
 
@@ -1089,9 +1221,17 @@ def survey_step2():
         "session_id": st.session_state.get("session_id"),
         "variant": CONDITION,
         "assigned_category": assigned,
-        "topic": {
-            "category": st.session_state.get("chosen_category"),
-            "subtopic": st.session_state.get("chosen_subtopic"),
+        "assignment": {
+            "scenario_label": expected,
+            "topic": (st.session_state.get("selected_thread", {}) or {}).get("topic")
+            or st.session_state.get("chosen_subtopic"),
+            "story_id": (st.session_state.get("selected_thread", {}) or {}).get("story_id")
+            or (st.session_state.get("selected_thread", {}) or {}).get("thread_id"),
+            "comment_variant_id": (st.session_state.get("selected_thread", {}) or {}).get("comment_variant_id"),
+            "support_combo": (st.session_state.get("selected_thread", {}) or {}).get("support_combo"),
+            "informational_support": (st.session_state.get("selected_thread", {}) or {}).get("informational_support"),
+            "emotional_support": (st.session_state.get("selected_thread", {}) or {}).get("emotional_support"),
+            "is_original_comment": (st.session_state.get("selected_thread", {}) or {}).get("is_original_comment"),
         },
         "thread": st.session_state.get("selected_thread", {}),
         "attention": {
@@ -1138,7 +1278,10 @@ def main():
         failed_attention_page()
         return
     if stage == "topic_select":
-        topic_select_page()
+        # Legacy stage from earlier versions: we no longer ask participants to choose a topic.
+        st.session_state.stage = "experiment"
+        st.session_state.scroll_top_next = True
+        st.rerun()
         return
     if stage == "experiment":
         experiment_page()
