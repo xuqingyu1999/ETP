@@ -155,6 +155,56 @@ def get_query_param(name: str) -> Optional[str]:
             return None
 
 
+
+def _is_truthy(v: Optional[str]) -> bool:
+    return str(v).strip().lower() in {"1", "true", "t", "yes", "y", "on"}
+
+
+def debug_overrides_enabled() -> bool:
+    """
+    Debug/testing overrides are DISABLED by default so participants cannot manipulate random assignment.
+    Enable in either of two ways:
+      - Add ?debug=1 in the URL (recommended for testing), OR
+      - Set DEBUG_OVERRIDES=true in Streamlit secrets.
+    """
+    try:
+        if bool(st.secrets.get("DEBUG_OVERRIDES", False)):
+            return True
+    except Exception:
+        pass
+    return _is_truthy(get_query_param("debug"))
+
+
+def get_assignment_overrides() -> Dict[str, Optional[str]]:
+    """
+    Read optional testing overrides from URL query params.
+    Examples (only works when debug_overrides_enabled()):
+      ?debug=1&topic=Financing
+      ?debug=1&topic=Legal&support_combo=high_high
+      ?debug=1&story_id=<some_id>&support_combo=low_low
+    """
+    if not debug_overrides_enabled():
+        return {}
+
+    topic = get_query_param("topic") or get_query_param("force_topic")
+    category = get_query_param("category") or get_query_param("cat")
+    story_id = get_query_param("story_id") or get_query_param("id")
+    support_combo = (
+        get_query_param("support_combo")
+        or get_query_param("combo")
+        or get_query_param("comment_type")
+    )
+    reset_token = get_query_param("reset") or get_query_param("reroll")
+
+    return {
+        "topic": topic,
+        "category": category,
+        "story_id": story_id,
+        "support_combo": support_combo,
+        "reset_token": reset_token,
+    }
+
+
 def scroll_to_top_once() -> None:
     components.html(
         """
@@ -529,19 +579,52 @@ def _topic_to_category_map() -> Dict[str, str]:
     return m
 
 
+def _normalize_category(label: str) -> Optional[str]:
+    s = (label or "").strip().lower()
+    if s in {"business", "biz"}:
+        return "Business"
+    if s in {"worklife balance", "work-life balance", "work life balance", "wlb", "worklife", "work-life", "work life"}:
+        return "Worklife balance"
+    return None
+
+
 def _assign_random_story_and_comment() -> Optional[Dict[str, Any]]:
-    """Assign scenario (Business vs Worklife), then a story, then 1 of its 4 comment types."""
+    """Assign scenario (Business vs Worklife), then a story, then 1 of its 4 comment types.
+
+    In debug/testing mode (?debug=1), you can force assignment with query params:
+      - topic=<Financing|Legal|...>
+      - story_id=<id>
+      - support_combo=<low_low|low_high|high_low|high_high>
+      - reset=<token>  (optional, forces re-roll once when token changes)
+    """
     threads, source = get_threads_data()
     st.session_state["_threads_source"] = source
 
     if not threads:
         return None
 
+    overrides = get_assignment_overrides()
+    debug = debug_overrides_enabled()
+
+    forced_topic = (overrides.get("topic") or "").strip()
+    forced_category_raw = (overrides.get("category") or "").strip()
+    forced_story_id = (overrides.get("story_id") or "").strip()
+    forced_combo = (overrides.get("support_combo") or "").strip()
+
     topic_to_cat = _topic_to_category_map()
+
+    # Optional: filter rows to a forced topic (debug only)
+    filtered_threads = threads
+    if debug and forced_topic:
+        ft = forced_topic.lower()
+        filtered_threads = [t for t in threads if (t.get("topic") or "").strip().lower() == ft]
+        if not filtered_threads:
+            st.warning(f"[Debug] No rows found for topic='{forced_topic}'. Falling back to random assignment.")
+            filtered_threads = threads
 
     # Build: category -> story_id -> [variants]
     cat_story_map: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
-    for t in threads:
+    for t in filtered_threads:
         topic = (t.get("topic") or "").strip().lower()
         cat = topic_to_cat.get(topic)
         if not cat:
@@ -555,24 +638,65 @@ def _assign_random_story_and_comment() -> Optional[Dict[str, Any]]:
     if not available_cats:
         return None
 
-    # 1) Assign scenario group (balanced across the two groups that have data)
+    # 1) Assign scenario group
     assigned_cat = st.session_state.get("assigned_category")
-    if assigned_cat not in available_cats:
-        assigned_cat = random.choice(available_cats)
-        st.session_state.assigned_category = assigned_cat
-        log_event(
-            "category_assigned",
-            title=assigned_cat,
-            payload={"assigned_category": assigned_cat, "method": "random"},
-        )
+
+    forced_cat: Optional[str] = None
+    if debug and forced_category_raw:
+        forced_cat = _normalize_category(forced_category_raw)
+        if forced_cat is None:
+            st.warning(f"[Debug] Unknown category='{forced_category_raw}'. Expected 'Business' or 'Worklife balance'.")
+    if debug and forced_topic:
+        # If topic is valid, it implies a category; used when category isn't explicitly forced.
+        implied = topic_to_cat.get(forced_topic.lower())
+        if implied:
+            forced_cat = forced_cat or implied
+        else:
+            st.warning(f"[Debug] Unknown topic='{forced_topic}'. It does not map to a category in TOPIC_GROUPS.")
+
+    if debug and forced_cat and forced_cat in available_cats:
+        if assigned_cat != forced_cat:
+            assigned_cat = forced_cat
+            st.session_state.assigned_category = assigned_cat
+            log_event(
+                "category_assigned",
+                title=assigned_cat,
+                payload={"assigned_category": assigned_cat, "method": "forced", "overrides": overrides},
+            )
+    else:
+        if assigned_cat not in available_cats:
+            assigned_cat = random.choice(available_cats)
+            st.session_state.assigned_category = assigned_cat
+            log_event(
+                "category_assigned",
+                title=assigned_cat,
+                payload={"assigned_category": assigned_cat, "method": "random"},
+            )
 
     # 2) Assign a story within that scenario
     story_groups = cat_story_map[assigned_cat]
-    story_id = random.choice(list(story_groups.keys()))
+    story_id: str
+    if debug and forced_story_id and forced_story_id in story_groups:
+        story_id = forced_story_id
+    else:
+        if debug and forced_story_id and forced_story_id not in story_groups:
+            st.warning(f"[Debug] story_id='{forced_story_id}' not found in assigned category '{assigned_cat}'. Using random story.")
+        story_id = random.choice(list(story_groups.keys()))
+
     variants = story_groups[story_id]
 
     # 3) Assign 1 comment type for that story
-    chosen_variant = random.choice(variants)
+    chosen_variant: Dict[str, Any]
+    if debug and forced_combo:
+        fc = forced_combo.lower()
+        candidates = [v for v in variants if (v.get("support_combo") or "").strip().lower() == fc]
+        if candidates:
+            chosen_variant = random.choice(candidates)
+        else:
+            st.warning(f"[Debug] support_combo='{forced_combo}' not found for story '{story_id}'. Using random comment variant.")
+            chosen_variant = random.choice(variants)
+    else:
+        chosen_variant = random.choice(variants)
 
     # Persist assignment
     st.session_state.chosen_subtopic = chosen_variant.get("topic")
@@ -594,6 +718,8 @@ def _assign_random_story_and_comment() -> Optional[Dict[str, Any]]:
             "emotional_support": chosen_variant.get("emotional_support"),
             "is_original_comment": chosen_variant.get("is_original_comment"),
             "source": chosen_variant.get("source"),
+            "method": "forced" if (debug and overrides and (forced_topic or forced_category_raw or forced_story_id or forced_combo)) else "random",
+            "overrides": overrides if (debug and overrides) else None,
         },
     )
 
@@ -601,11 +727,52 @@ def _assign_random_story_and_comment() -> Optional[Dict[str, Any]]:
 
 
 def ensure_thread_selected() -> Optional[Dict[str, Any]]:
-    """Ensure one assigned (story + comment type) is fixed for this participant."""
+    """Ensure one assigned (story + comment type) is fixed for this participant.
+
+    In debug mode, if URL query params force a topic/story/support_combo, we clear any existing
+    selection that doesn't match, so refreshing the page will respect the override.
+    """
+    overrides = get_assignment_overrides()
+    debug = debug_overrides_enabled()
+
+    if debug and overrides:
+        # Optional reset: change ?reset=<token> to force a re-roll once (token can be any string)
+        reset_token = overrides.get("reset_token")
+        if reset_token:
+            last = st.session_state.get("_debug_last_reset_token")
+            if str(reset_token) != str(last):
+                st.session_state["_debug_last_reset_token"] = str(reset_token)
+                for k in [
+                    "selected_thread",
+                    "assigned_category",
+                    "chosen_subtopic",
+                    "exp_view_start_ts",
+                    "thread_read_elapsed_seconds",
+                ]:
+                    st.session_state.pop(k, None)
+                st.session_state.pop("_logged_thread_shown", None)
+
+        existing = st.session_state.get("selected_thread")
+        if existing is not None:
+            topic_ok = True
+            story_ok = True
+            combo_ok = True
+
+            if overrides.get("topic"):
+                topic_ok = (existing.get("topic") or "").strip().lower() == overrides["topic"].strip().lower()
+            if overrides.get("story_id"):
+                story_ok = (existing.get("story_id") or "") == overrides["story_id"]
+            if overrides.get("support_combo"):
+                combo_ok = (existing.get("support_combo") or "").strip().lower() == overrides["support_combo"].strip().lower()
+
+            if not (topic_ok and story_ok and combo_ok):
+                st.session_state.pop("selected_thread", None)
+
     if st.session_state.get("selected_thread") is not None:
         return st.session_state.selected_thread
 
     return _assign_random_story_and_comment()
+
 
 # =============================================================================
 # SURVEY WIDGETS
