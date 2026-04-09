@@ -884,11 +884,11 @@ def pid_page():
 
 def practice_page():
     render_banner()
-    st.title("ATTENTION CHECK")
+    st.title("PRACTICE QUESTIONS")
 
     st.markdown(
-        "Before starting, please answer the questions below. "
-        "These questions help ensure responses are attentive."
+        "Before starting the study, please answer the practice questions below. "
+        "These questions help ensure the study is working properly and that responses are attentive."
     )
 
     with st.form("practice_form", clear_on_submit=False):
