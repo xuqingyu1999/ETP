@@ -1091,12 +1091,6 @@ def experiment_page():
 
     st.markdown(
         f"""
-<div style="font-weight:800; font-size:1.05rem; margin-bottom:8px;">
-  Below, you will read a thread posted by
-  <span class="emph">{html.escape(POSTED_BY_NAME)}</span>
-  on social media about
-  <span class="emph">{html.escape(str(subtopic))}</span>.
-</div>
 <div style="margin: 6px 0 10px 0; font-weight:700;">
   Task: Please read the thread and the comment carefully.
 </div>
