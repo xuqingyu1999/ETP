@@ -948,7 +948,7 @@ def survey_page():
 
         with st.form("survey_p2", clear_on_submit=False):
             #mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
-                                 horizontal=True)
+            #                     horizontal=True)
             mc_gender_tone = st.radio(
                                         "Based on the entrepreneur's writing tone, how did the entrepreneur seem?",
                                         options=[0, 1, 2, 3, 4, 5],
