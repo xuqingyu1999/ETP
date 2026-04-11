@@ -949,15 +949,23 @@ def survey_page():
         with st.form("survey_p2", clear_on_submit=False):
             #mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
             #                     horizontal=True)
-            mc_gender_tone = st.radio(
-                                        "Based on the entrepreneur's writing tone, how did the entrepreneur seem?",
-                                        options=[0, 1, 2, 3, 4, 5],
-                                        index=None,
-                                        horizontal=True,
-                                        key="mc_gender_tone",
-                                    )
+            def _fmt_gender(x: int) -> str:
+                if x == 0:
+                    return "0 (female-leaning)"
+                if x == 5:
+                    return "5 (male-leaning)"
+                return str(x)
 
-            st.caption("0 = more feminine / likely female · 5 = more masculine / likely male (2–3 can indicate uncertainty).")
+            mc_gender = st.radio(
+                "Based on the entrepreneur's writing tone, how did the entrepreneur seem?",
+                options=[0, 1, 2, 3, 4, 5],
+                index=None,
+                horizontal=True,
+                key="mc_gender",
+                format_func=_fmt_gender,
+            )
+            # st.caption("Choose the number that best matches the perceived gendered tone.")
+
             mc_topic = st.radio(
                 "The post was mainly about:",
                 ["Work-life balance", "Business difficulty"],
