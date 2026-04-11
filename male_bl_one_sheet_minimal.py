@@ -947,8 +947,17 @@ def survey_page():
         st.caption("Please answer all questions on this page to continue.")
 
         with st.form("survey_p2", clear_on_submit=False):
-            mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
+            #mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
                                  horizontal=True)
+            mc_gender_tone = st.radio(
+                                        "Based on the entrepreneur's writing tone, how did the entrepreneur seem?",
+                                        options=[0, 1, 2, 3, 4, 5],
+                                        index=None,
+                                        horizontal=True,
+                                        key="mc_gender_tone",
+                                    )
+
+st.caption("0 = more feminine / likely female · 5 = more masculine / likely male (2–3 can indicate uncertainty).")
             mc_topic = st.radio(
                 "The post was mainly about:",
                 ["Work-life balance", "Business difficulty"],
