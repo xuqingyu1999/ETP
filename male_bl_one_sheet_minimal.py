@@ -957,7 +957,7 @@ def survey_page():
                                         key="mc_gender_tone",
                                     )
 
-st.caption("0 = more feminine / likely female · 5 = more masculine / likely male (2–3 can indicate uncertainty).")
+            st.caption("0 = more feminine / likely female · 5 = more masculine / likely male (2–3 can indicate uncertainty).")
             mc_topic = st.radio(
                 "The post was mainly about:",
                 ["Work-life balance", "Business difficulty"],
