@@ -949,22 +949,19 @@ def survey_page():
         with st.form("survey_p2", clear_on_submit=False):
             #mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
             #                     horizontal=True)
-            def _fmt_gender(x: int) -> str:
-                if x == 0:
-                    return "0 (female-leaning)"
-                if x == 5:
-                    return "5 (male-leaning)"
-                return str(x)
+            cols = st.columns(6)
+            cols[0].markdown("**female‑leaning**")
+            cols[5].markdown("<div style='text-align:right;'><b>male‑leaning</b></div>", unsafe_allow_html=True)
 
-            mc_gender = st.radio(
-                "Based on the entrepreneur's writing tone, how did the entrepreneur seem?",
+            mc_gender_tone = st.radio(
+                label="",
                 options=[0, 1, 2, 3, 4, 5],
-                index=None,
+                index=None,          # 不默认选中
                 horizontal=True,
-                key="mc_gender",
-                format_func=_fmt_gender,
+                key="mc_gender_tone",
+                # 如果你的 streamlit 版本支持，可以加这个让空 label 更干净：
+                # label_visibility="collapsed",
             )
-            # st.caption("Choose the number that best matches the perceived gendered tone.")
 
             mc_topic = st.radio(
                 "The post was mainly about:",
