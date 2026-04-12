@@ -954,8 +954,8 @@ def survey_page():
             # mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
             #                      horizontal=True)
             mc_gender = st.radio(
-                                        "Based on the entrepreneur's post, what gender do you perceive the entrepreneur to be? (0 = female; 5 = male)",
-                                        options=[0, 1, 2, 3, 4, 5],
+                                        "Based on the entrepreneur's post, what gender do you perceive the entrepreneur to be? (1 = Female; 3= Neutral; 5 = Male)",
+                                        options=[1, 2, 3, 4, 5],
                                         index=None,
                                         horizontal=True,
                                         key="mc_gender",
