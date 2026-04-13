@@ -1272,19 +1272,27 @@ def survey_step2():
             ["Work-life balance", "Business difficulty"],
             index=None,
             horizontal=True,
+            key="mc_topic",
         )
 
         st.divider()
 
-        birth_year = st.text_input("**What is your birth year?** (1960–2007)", placeholder="e.g., 1998")
-        gender = st.selectbox(
-            "**What is your gender?**",
-            ["female", "male", "third gender", "transgender"],
+        birth_year = st.selectbox(
+            "What is your birth year?",
+            list(range(1960, 2009)),
             index=None,
             placeholder="Select…",
+            key="birth_year",
+        )
+        gender = st.selectbox(
+            "What is your gender?",
+            ["Female", "Male", "Third gender", "Transgender"],
+            index=None,
+            placeholder="Select…",
+            key="demo_gender",
         )
         education = st.selectbox(
-            "**What’s your highest level of formal education?**",
+            "What’s your highest level of formal education?",
             [
                 "High school degree or below",
                 "Associated or technical degree",
@@ -1294,9 +1302,22 @@ def survey_step2():
             ],
             index=None,
             placeholder="Select…",
+            key="education",
         )
-        ent_years = st.text_input("**How many years of entrepreneurial experience do you have?** (0–50)", placeholder="e.g., 3")
-        work_years = st.text_input("**How many years of work experience do you have?** (0–50)", placeholder="e.g., 10")
+        ent_years = st.selectbox(
+            "How many years of entrepreneurial experience do you have?",
+            list(range(0, 51)),
+            index=None,
+            placeholder="Select…",
+            key="ent_years",
+        )
+        work_years = st.selectbox(
+            "How many years of work experience do you have?",
+            list(range(0, 51)),
+            index=None,
+            placeholder="Select…",
+            key="work_years",
+        )
 
         submitted = st.form_submit_button("Submit")
 
@@ -1318,32 +1339,10 @@ def survey_step2():
         st.error("Please complete all required questions: " + ", ".join(missing_fields))
         return
 
-    # Validate numeric
-    errs = []
-    try:
-        by = int(str(birth_year).strip())
-        if by < 1960 or by > 2007:
-            errs.append("Birth year must be 1960–2007")
-    except Exception:
-        errs.append("Birth year must be an integer")
-
-    try:
-        ey = int(str(ent_years).strip())
-        if ey < 0 or ey > 50:
-            errs.append("Entrepreneurial experience must be 0–50")
-    except Exception:
-        errs.append("Entrepreneurial experience must be an integer")
-
-    try:
-        wy = int(str(work_years).strip())
-        if wy < 0 or wy > 50:
-            errs.append("Work experience must be 0–50")
-    except Exception:
-        errs.append("Work experience must be an integer")
-
-    if errs:
-        st.error("Please fix the following: " + "; ".join(errs))
-        return
+    # Cast (selectboxes already constrain the range, but keep explicit ints for logging)
+    by = int(birth_year)
+    ey = int(ent_years)
+    wy = int(work_years)
 
     # Store page2
     st.session_state.survey_answers["page2"] = {
@@ -1376,7 +1375,7 @@ def survey_step2():
         },
     )
 
-    # Final payload
+    # Final payload (保持你原来的结构不变)
     final_payload = {
         "pid": st.session_state.get("prolific_id"),
         "session_id": st.session_state.get("session_id"),
