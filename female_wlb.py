@@ -1067,14 +1067,14 @@ def survey_page():
         # Demographics (required)
         birth_year = st.selectbox(
             "What is your birth year?",
-            list(range(1960, 2006)),
+            list(range(1960, 2009)),
             index=None,
             placeholder="Select…",
             key="birth_year",
         )
         gender = st.selectbox(
             "What is your gender?",
-            ["female", "male", "third gender", "transgender"],
+            ["Female", "Male", "Third gender", "Transgender"],
             index=None,
             placeholder="Select…",
             key="demo_gender",
