@@ -53,7 +53,7 @@ POSTED_BY_NAME = "David"
 
 POST_TITLE = "Running a business is difficult!"
 POST_BODY_MD = """
-Running a business is difficult! I am a small business owner. For the last two years, I’ve answered the calls, given the quotes, and assisted in the labor. 100% focus on being professional, on-time, and accurate with quotes/pricing.  We have received nothing but 5 star reviews on yelp, google, Facebook, etc... I’ve built up around 20 reviews on yelp which are all 5 star reviews. Unfortunately 14 out of the 20 are hidden and not shown.
+Running a business is difficult! As a guy running a small local business, I’ve answered the calls, given the quotes, and assisted in the labor. 100% focus on being professional, on-time, and accurate with quotes/pricing.  We have received nothing but 5 star reviews on yelp, google, Facebook, etc... I’ve built up around 20 reviews on yelp which are all 5 star reviews. Unfortunately 14 out of the 20 are hidden and not shown.
 
 Yelp call me every other day even though I’ve told them again and again that they can email me offers. I don’t have time to answer disguised calls from reps all day. I understand how yelp works... I understand that i got more customer views when I was advertising with yelp... i understand how to setup everything on yelp and do not need any assistance...
 
