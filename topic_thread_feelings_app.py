@@ -1183,7 +1183,7 @@ def survey_page():
 def survey_step1():
     st.markdown(
         """
-Please imagine that you are the entrepreneur **who posted the thread** and that you have just read the online **comment**.  
+Please imagine that you are the entrepreneur **who posted the thread** and that you have just read the online **comment** (scroll up to review the post and the comment).  
 Indicate how you would feel right now.
 
 Please answer each item according to the following scale:  
