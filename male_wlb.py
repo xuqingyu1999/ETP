@@ -946,12 +946,12 @@ def survey_page():
 
         with st.form("survey_p2", clear_on_submit=False):
             mc_gender = st.radio(
-                                        "Based on the entrepreneur's post, what gender do you perceive the entrepreneur to be? (1 = Female; 3= Neutral; 5 = Male)",
-                                        options=[1, 2, 3, 4, 5],
-                                        index=None,
-                                        horizontal=True,
-                                        key="mc_gender",
-                                    )
+                "Based on the entrepreneur's post, what gender do you perceive the entrepreneur to be?",
+                ["Female", "Unsure", "Male"],
+                index=None,
+                horizontal=True,
+                key="mc_gender",
+                )
             mc_topic = st.radio(
                 "The post was mainly about:",
                 ["Work-life balance", "Business difficulty"],
