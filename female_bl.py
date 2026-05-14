@@ -295,18 +295,7 @@ def _append_local(row: List[Any]) -> None:
 #
 #     return ""
 def save_to_gsheet(data):
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(
-        get_credentials_from_secrets(), scope
-    )
-    client = gspread.authorize(creds)
-
-    sheet = client.open("ETP-FEMALE-BD").sheet1
-    sheet.append_row([
+    row = [
         data.get("id", ""),
         data.get("start", ""),
         data.get("variant", ""),
@@ -314,7 +303,41 @@ def save_to_gsheet(data):
         data.get("type", ""),
         data.get("title", ""),
         data.get("url", "")
-    ])
+    ]
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    last_error = None
+    for attempt in range(3):
+        try:
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(
+                get_credentials_from_secrets(), scope
+            )
+            client = gspread.authorize(creds)
+
+            sheet = client.open("ETP-FEMALE-BD").sheet1
+            sheet.append_row(row)
+            st.session_state.pop("_gsheet_error", None)
+            return
+        except Exception as e:
+            last_error = e
+            st.session_state["_gsheet_error"] = (
+                f"GSheet write attempt {attempt + 1}/3 failed: {e}"
+            )
+            if attempt < 2:
+                time.sleep(0.5 * (2 ** attempt))
+
+    try:
+        _append_local(row)
+        st.session_state["_gsheet_error"] = (
+            f"GSheet write failed after 3 attempts; saved to local fallback: {last_error}"
+        )
+    except Exception as e:
+        st.session_state["_gsheet_error"] = (
+            f"GSheet write failed after 3 attempts; local fallback also failed: {e}"
+        )
 
 
 def log_event(event_type: str, *, title: str = "", payload: Optional[Dict[str, Any]] = None) -> None:
