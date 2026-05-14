@@ -32,6 +32,7 @@ import streamlit as st
 
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+
 # Prefer oauth2client (matches your example). If not available, fall back.
 # try:
 #     from oauth2client.service_account import ServiceAccountCredentials  # type: ignore
@@ -59,7 +60,6 @@ My son got tired of the cat and mouse game and pointed the gifts out on my birth
 
 Lesson learned: over the next year I want to structure some time to enjoy what I have. Starting with looking around my home office every time I use it. I don’t want to miss an early bonus again. :) My birthday wish for all of us is to find the balance between chasing our goals and enjoying the ones we have already achieved.
 """.strip()
-
 
 TOPIC_LABEL = "work-life balance difficulties"
 PRONOUN_POSSESSIVE = "her"
@@ -106,18 +106,21 @@ import streamlit.components.v1 as components
 # ===== Survey helpers =====
 LIKERT_1_7 = [1, 2, 3, 4, 5, 6, 7]
 
+
 def likert7_row(statement: str, key: str):
     """1–7 Likert row with no default selection."""
     return st.radio(
         statement,
         options=LIKERT_1_7,
-        index=None,          # required (no pre-selection)
+        index=None,  # required (no pre-selection)
         horizontal=True,
         key=key,
     )
 
+
 def _is_blank(x):
     return x is None or (isinstance(x, str) and x.strip() == "")
+
 
 # ===== New scales (1–7) =====
 IDENTITY_THREAT_ITEMS = [
@@ -149,6 +152,7 @@ GENDER_ID_SALIENCE_ITEMS = [
     "My gender is a vital lens through which I experience and navigate my life.",
     "I feel a strong sense of connection to the shared experiences associated with my gender.",
 ]
+
 
 def scroll_to_top_once():
     components.html(
@@ -289,18 +293,7 @@ def _append_local(row: List[Any]) -> None:
 #
 #     return ""
 def save_to_gsheet(data):
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(
-        get_credentials_from_secrets(), scope
-    )
-    client = gspread.authorize(creds)
-
-    sheet = client.open("ETP-FEMALE-WLB").sheet1
-    sheet.append_row([
+    row = [
         data.get("id", ""),
         data.get("start", ""),
         data.get("variant", ""),
@@ -308,7 +301,41 @@ def save_to_gsheet(data):
         data.get("type", ""),
         data.get("title", ""),
         data.get("url", "")
-    ])
+    ]
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    last_error = None
+    for attempt in range(3):
+        try:
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(
+                get_credentials_from_secrets(), scope
+            )
+            client = gspread.authorize(creds)
+
+            sheet = client.open("ETP-FEMALE-WLB").sheet1
+            sheet.append_row(row)
+            st.session_state.pop("_gsheet_error", None)
+            return
+        except Exception as e:
+            last_error = e
+            st.session_state["_gsheet_error"] = (
+                f"GSheet write attempt {attempt + 1}/3 failed: {e}"
+            )
+            if attempt < 2:
+                time.sleep(0.5 * (2 ** attempt))
+
+    try:
+        _append_local(row)
+        st.session_state["_gsheet_error"] = (
+            f"GSheet write failed after 3 attempts; saved to local fallback: {last_error}"
+        )
+    except Exception as e:
+        st.session_state["_gsheet_error"] = (
+            f"GSheet write failed after 3 attempts; local fallback also failed: {e}"
+        )
 
 
 def log_event(event_type: str, *, title: str = "", payload: Optional[Dict[str, Any]] = None) -> None:
@@ -473,18 +500,17 @@ def render_consent_page():
     st.session_state.setdefault("instr_start_ts", time.time())
     elapsed = int(time.time() - st.session_state.instr_start_ts)
     remaining = max(0, MIN_SECONDS - elapsed)
-    
+
     countdown = st.empty()
     countdown.caption(
         f"Please stay on this page for at least {MIN_SECONDS} seconds. Remaining: {remaining}s"
     )
-    
+
     if remaining > 0:
         st.button("I agree and continue", disabled=True, key="consent_continue")
         time.sleep(1)
         st.rerun()
         return
-
 
     if st.button("I agree and continue"):
         if remaining > 0:
@@ -495,6 +521,7 @@ def render_consent_page():
             st.rerun()
         else:
             st.warning("You must agree to participate before continuing.")
+
 
 # =============================================================================
 # PID PAGE
@@ -849,6 +876,7 @@ def likert7(question: str, key: str) -> Optional[int]:
     return st.radio("", options=[1, 2, 3, 4, 5, 6, 7], horizontal=True, index=None, key=key,
                     label_visibility="collapsed")
 
+
 LIKERT_1_7 = [1, 2, 3, 4, 5, 6, 7]
 
 ESS_ITEMS = [
@@ -885,7 +913,7 @@ def survey_page():
     if st.session_state.pop("scroll_top_next", False):
         scroll_to_top_once()
 
-    st.session_state.setdefault("survey_step", 1)      # 1, 2, 3
+    st.session_state.setdefault("survey_step", 1)  # 1, 2, 3
     st.session_state.setdefault("survey_answers", {})  # cumulative across pages
 
     # -------------------------
@@ -953,12 +981,12 @@ def survey_page():
             # mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
             #                      horizontal=True)
             mc_gender = st.radio(
-                                        "Based on the entrepreneur's post, what gender do you perceive the entrepreneur to be? (1 = Female; 3= Neutral; 5 = Male)",
-                                        options=[1, 2, 3, 4, 5],
-                                        index=None,
-                                        horizontal=True,
-                                        key="mc_gender",
-                                    )
+                "Based on the entrepreneur's post, what gender do you perceive the entrepreneur to be? (1 = Female; 3= Neutral; 5 = Male)",
+                options=[1, 2, 3, 4, 5],
+                index=None,
+                horizontal=True,
+                key="mc_gender",
+            )
             mc_topic = st.radio(
                 "The post was mainly about:",
                 ["Work-life balance", "Business difficulty"],
