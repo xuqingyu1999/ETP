@@ -1,5 +1,5 @@
-# file: male_bd.py
-# Male BD condition (single-app version) — matches Female BD flow & survey
+# file: study1_randomized_app.py
+# Study 1 randomized-condition deployment app with quota-aware assignment.
 #
 # What you asked for in the latest message:
 #   ✅ One Google Sheet (sheet1) for everything
@@ -19,9 +19,11 @@
 #      “Debug” expander.
 
 import base64
+import ast
 import csv
 import json
 import os
+import random
 import time
 import uuid
 from datetime import datetime, timezone
@@ -43,27 +45,135 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 
 # =============================================================================
-# EXPERIMENT SETTINGS (Male BD)
+# EXPERIMENT SETTINGS (Male BL)
 # =============================================================================
-CONDITION = "M_BD"
+CONDITION = "F_BD"
 
 SUBREDDIT = "r/business"
 DAYS_AGO = 7
-AUTHOR_USERNAME = "IronBadger87"
-POSTED_BY_NAME = "David"
+AUTHOR_USERNAME = "LunarMarten21"
+POSTED_BY_NAME = "Maria"
 
 POST_TITLE = "Running a business is difficult!"
 POST_BODY_MD = """
-Running a business is difficult! As a guy running a small local business, I’ve answered the calls, given the quotes, and assisted in the labor. 100% focus on being professional, on-time, and accurate with quotes/pricing.  We have received nothing but 5 star reviews on yelp, google, Facebook, etc... I’ve built up around 20 reviews on yelp which are all 5 star reviews. Unfortunately 14 out of the 20 are hidden and not shown.
+Running a business is difficult! As a woman running a small local business, I’ve answered the calls, given the quotes, and assisted in the labor. 100% focus on being professional, on-time, and accurate with quotes/pricing. We have received nothing but 5 star reviews on yelp, google, Facebook, etc... 
 
-Yelp call me every other day even though I’ve told them again and again that they can email me offers. I don’t have time to answer disguised calls from reps all day. I understand how yelp works... I understand that i got more customer views when I was advertising with yelp... i understand how to setup everything on yelp and do not need any assistance...
+I’ve built up around 20 reviews on yelp which are all 5 star reviews.  Unfortunately 14 out of the 20 are hidden and not shown. 
+
+Yelp call me every other day even though I’ve told them again and again that they can email me offers. I don’t have time to answer disguised calls from reps all day. I understand how yelp works... I understand that i got more customer views when I was advertising with yelp... i understand how to setup everything on yelp and do not need any assistance... 
 
 The harassment, call number disguising, the taking down of reviews, removing service locations... it’s not good business. Now today, I log in... and it keeps clearing my services list. I’m wondering how many others this happens to. Google Reviews is only going to improve, and yelp will be nothing... I’m done with them.
 """.strip()
 
 TOPIC_LABEL = "business difficulties"
-PRONOUN_POSSESSIVE = "his"
+PRONOUN_POSSESSIVE = "her"
 DEFAULT_SCORE = 5
+
+LEGACY_CONDITION_FILES = {
+    "F_BD": "female_bl.py",
+    "F_WLB": "female_wlb.py",
+    "M_WLB": "male_wlb.py",
+    "M_BD": "male_bl.py",
+}
+CONDITION_ASSIGNMENT_ORDER = ["F_BD", "F_WLB", "M_WLB", "M_BD"]
+DEFAULT_CONDITION_LIMIT = 75
+
+
+def _literal_config_value(node):
+    try:
+        return ast.literal_eval(node)
+    except Exception:
+        pass
+
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "strip"
+        and isinstance(node.func.value, ast.Constant)
+        and isinstance(node.func.value.value, str)
+    ):
+        return node.func.value.value.strip()
+
+    return None
+
+
+def _read_condition_constants(filename: str) -> Dict[str, Any]:
+    source_path = Path(__file__).parent / filename
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=filename)
+    wanted = {
+        "CONDITION",
+        "SUBREDDIT",
+        "DAYS_AGO",
+        "AUTHOR_USERNAME",
+        "POSTED_BY_NAME",
+        "POST_TITLE",
+        "POST_BODY_MD",
+        "TOPIC_LABEL",
+        "PRONOUN_POSSESSIVE",
+    }
+    values: Dict[str, Any] = {}
+
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id in wanted:
+                value = _literal_config_value(node.value)
+                if value is not None:
+                    values[target.id] = value
+
+    code = str(values["CONDITION"])
+    is_female = code.startswith("F_")
+    values["AVATAR_FILENAME"] = "f_avatar.png" if is_female else "m_avatar.png"
+    values["PRONOUN_OBJECT"] = "her" if is_female else "him"
+    values["PRONOUN_SUBJECT"] = "she" if is_female else "he"
+    values["PRONOUN_REFLEXIVE"] = "herself" if is_female else "himself"
+    return values
+
+
+def _load_condition_configs() -> Dict[str, Dict[str, Any]]:
+    configs = {}
+    for code, filename in LEGACY_CONDITION_FILES.items():
+        cfg = _read_condition_constants(filename)
+        if cfg.get("CONDITION") != code:
+            raise RuntimeError(f"{filename} defines {cfg.get('CONDITION')}, expected {code}.")
+        configs[code] = cfg
+    return configs
+
+
+CONDITION_CONFIGS = _load_condition_configs()
+
+
+def get_active_condition_code() -> str:
+    code = st.session_state.get("assigned_condition") or CONDITION_ASSIGNMENT_ORDER[0]
+    if code not in CONDITION_CONFIGS:
+        return CONDITION_ASSIGNMENT_ORDER[0]
+    return str(code)
+
+
+def active_condition_config() -> Dict[str, Any]:
+    return CONDITION_CONFIGS[get_active_condition_code()]
+
+
+def apply_condition_config() -> None:
+    cfg = active_condition_config()
+    globals()["CONDITION"] = cfg["CONDITION"]
+    globals()["SUBREDDIT"] = cfg["SUBREDDIT"]
+    globals()["DAYS_AGO"] = cfg["DAYS_AGO"]
+    globals()["AUTHOR_USERNAME"] = cfg["AUTHOR_USERNAME"]
+    globals()["POSTED_BY_NAME"] = cfg["POSTED_BY_NAME"]
+    globals()["POST_TITLE"] = cfg["POST_TITLE"]
+    globals()["POST_BODY_MD"] = cfg["POST_BODY_MD"]
+    globals()["TOPIC_LABEL"] = cfg["TOPIC_LABEL"]
+    globals()["PRONOUN_POSSESSIVE"] = cfg["PRONOUN_POSSESSIVE"]
+    globals()["PRONOUN_OBJECT"] = cfg["PRONOUN_OBJECT"]
+    globals()["PRONOUN_SUBJECT"] = cfg["PRONOUN_SUBJECT"]
+    globals()["PRONOUN_REFLEXIVE"] = cfg["PRONOUN_REFLEXIVE"]
+    if "APP_DIR" in globals():
+        globals()["AVATAR_PATH"] = APP_DIR / cfg["AVATAR_FILENAME"]
+
+
+apply_condition_config()
 
 # --- logging controls (reduce "too many logs") ---
 LOG_VOTES = False  # set True if you also want vote events
@@ -86,7 +196,7 @@ ONLINE_SCALE = ["Never", "Rarely", "Sometimes", "Often", "Always"]
 # =============================================================================
 # STREAMLIT PAGE CONFIG
 # =============================================================================
-st.set_page_config(page_title="Reddit-style Study (M_BD)", page_icon="🧪", layout="centered")
+st.set_page_config(page_title="Reddit-style Study", page_icon="🧪", layout="centered")
 
 st.markdown(
     """
@@ -216,6 +326,22 @@ def get_credentials_from_secrets():
     return creds_dict
 
 
+def _secret_or_env(name: str, default: Optional[str] = None) -> Optional[str]:
+    try:
+        value = st.secrets.get(name, None)
+    except Exception:
+        value = None
+    return value or os.getenv(name) or default
+
+
+def get_study1_spreadsheet_name() -> str:
+    return _secret_or_env("STUDY1_SPREADSHEET_NAME", "ETP-STUDY1") or "ETP-STUDY1"
+
+
+def get_completion_url() -> Optional[str]:
+    return _secret_or_env("COMPLETION_URL_STUDY1")
+
+
 @st.cache_resource(show_spinner=False)
 def _get_sheet1():
     """Connect once and keep the handle."""
@@ -226,21 +352,10 @@ def _get_sheet1():
     ]
 
     creds_dict = get_credentials_from_secrets()
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scopes=scopes)
+    client = gspread.authorize(creds)
 
-    if _USE_OAUTH2CLIENT:
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scopes=scopes)
-        client = gspread.authorize(creds)
-    else:
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        client = gspread.authorize(creds)
-
-    # spreadsheet name (defaults to your example)
-    spreadsheet_name = (
-        st.secrets.get("SPREADSHEET_NAME", None)
-        if hasattr(st, "secrets")
-        else None
-    )
-    spreadsheet_name = spreadsheet_name or os.getenv("SPREADSHEET_NAME") or "SeEn Ads"
+    spreadsheet_name = get_study1_spreadsheet_name()
 
     sh = client.open(spreadsheet_name)
     ws = sh.sheet1
@@ -252,7 +367,7 @@ def _get_sheet1():
     return ws
 
 
-LOCAL_FALLBACK = "fallback_event_log.csv"
+LOCAL_FALLBACK = "study1_fallback_event_log.csv"
 
 
 def _append_local(row: List[Any]) -> None:
@@ -264,34 +379,110 @@ def _append_local(row: List[Any]) -> None:
         w.writerow(row)
 
 
-# def save_to_gsheet(data: Dict[str, Any]) -> str:
-#     """Append to Google Sheet with retries. If it fails, write to local CSV.
-#
-#     Returns "" (empty string) to match the style of your example.
-#     """
-#     data = dict(data)
-#     data.setdefault("variant", CONDITION)
-#
-#     row = [data.get(k, "") for k in GSHEET_KEYS]
-#
-#     # Always keep a local backup too (so you have 2 copies: Google + local)
-#     _append_local(row)
-#
-#     try:
-#         ws = _get_sheet1()
-#     except Exception as e:
-#         st.session_state["_gsheet_error"] = f"Init error: {e}"
-#         return ""
-#
-#     for i in range(3):
-#         try:
-#             ws.append_row(row)
-#             return ""
-#         except Exception as e:
-#             st.session_state["_gsheet_error"] = f"Append error: {e}"
-#             time.sleep(0.5)
-#
-#     return ""
+def _load_sheet_records() -> Optional[List[Dict[str, Any]]]:
+    last_error = None
+    for attempt in range(3):
+        try:
+            return _get_sheet1().get_all_records()
+        except Exception as e:
+            last_error = e
+            st.session_state["_gsheet_error"] = (
+                f"GSheet read attempt {attempt + 1}/3 failed: {e}"
+            )
+            if attempt < 2:
+                time.sleep(0.5 * (2 ** attempt))
+
+    st.session_state["_gsheet_error"] = (
+        f"Could not read Study 1 quota sheet after 3 attempts: {last_error}"
+    )
+    return None
+
+
+def _parse_condition_limits() -> Dict[str, int]:
+    raw: Any = None
+    try:
+        raw = st.secrets.get("STUDY1_CONDITION_LIMITS", None)
+    except Exception:
+        raw = None
+    raw = raw or os.getenv("STUDY1_CONDITION_LIMITS")
+
+    if isinstance(raw, str) and raw.strip():
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = None
+
+    if hasattr(raw, "items"):
+        raw = dict(raw)
+
+    if not isinstance(raw, dict):
+        raw = {}
+
+    limits = {}
+    for code in CONDITION_ASSIGNMENT_ORDER:
+        try:
+            value = int(raw.get(code, DEFAULT_CONDITION_LIMIT))
+        except Exception:
+            value = DEFAULT_CONDITION_LIMIT
+        limits[code] = max(0, value)
+    return limits
+
+
+def _completed_counts(records: List[Dict[str, Any]]) -> Dict[str, int]:
+    counts = {code: 0 for code in CONDITION_ASSIGNMENT_ORDER}
+    for row in records:
+        variant = str(row.get("variant", "")).strip()
+        event_type = str(row.get("type", "")).strip()
+        if event_type == "survey_submitted" and variant in counts:
+            counts[variant] += 1
+    return counts
+
+
+def _participant_status(pid: str, records: List[Dict[str, Any]]) -> Dict[str, Optional[str]]:
+    latest_seen_condition = None
+    latest_assignment = None
+    latest_completion = None
+    for row in records:
+        if str(row.get("id", "")).strip() != pid:
+            continue
+        variant = str(row.get("variant", "")).strip()
+        if variant not in CONDITION_CONFIGS:
+            continue
+        latest_seen_condition = variant
+        event_type = str(row.get("type", "")).strip()
+        if event_type == "condition_assigned":
+            latest_assignment = variant
+        elif event_type == "survey_submitted":
+            latest_completion = variant
+
+    return {
+        "assigned_condition": latest_assignment or latest_completion or latest_seen_condition,
+        "completed_condition": latest_completion,
+    }
+
+
+def _choose_condition(records: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    limits = _parse_condition_limits()
+    counts = _completed_counts(records)
+    available = [
+        code for code in CONDITION_ASSIGNMENT_ORDER
+        if counts.get(code, 0) < limits.get(code, 0)
+    ]
+    if not available:
+        return None
+
+    min_completed = min(counts[code] for code in available)
+    tied = [code for code in available if counts[code] == min_completed]
+    condition = random.choice(tied)
+    return {
+        "condition": condition,
+        "counts": counts,
+        "limits": limits,
+        "available": available,
+        "method": "least_completed_random_tie",
+    }
+
+
 def save_to_gsheet(data):
     row = [
         data.get("id", ""),
@@ -302,21 +493,11 @@ def save_to_gsheet(data):
         data.get("title", ""),
         data.get("url", "")
     ]
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
 
     last_error = None
     for attempt in range(3):
         try:
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(
-                get_credentials_from_secrets(), scope
-            )
-            client = gspread.authorize(creds)
-
-            sheet = client.open("ETP-MALE-BD").sheet1
-            sheet.append_row(row)
+            _get_sheet1().append_row(row)
             st.session_state.pop("_gsheet_error", None)
             return
         except Exception as e:
@@ -340,6 +521,7 @@ def save_to_gsheet(data):
 
 def log_event(event_type: str, *, title: str = "", payload: Optional[Dict[str, Any]] = None) -> None:
     """One unified logger. 'url' column stores JSON payload."""
+    apply_condition_config()
     pid = st.session_state.get("prolific_id") or ""
     start = st.session_state.get("start_time") or ""
     save_to_gsheet(
@@ -360,7 +542,8 @@ def log_event(event_type: str, *, title: str = "", payload: Optional[Dict[str, A
 # =============================================================================
 APP_DIR = Path(__file__).parent
 REDDIT_LOGO_PATH = APP_DIR / "reddit_logo.png"
-AVATAR_PATH = APP_DIR / "m_avatar.png"
+AVATAR_PATH = APP_DIR / active_condition_config()["AVATAR_FILENAME"]
+apply_condition_config()
 
 
 def render_banner():
@@ -494,7 +677,10 @@ def render_consent_page():
 
     st.session_state.setdefault("instr_start_ts", time.time())
 
-    # st.session_state.setdefault("instr_start_ts", time.time())
+    elapsed = int(time.time() - st.session_state.instr_start_ts)
+    remaining = max(0, MIN_SECONDS - elapsed)
+
+    st.session_state.setdefault("instr_start_ts", time.time())
     elapsed = int(time.time() - st.session_state.instr_start_ts)
     remaining = max(0, MIN_SECONDS - elapsed)
 
@@ -537,8 +723,56 @@ def pid_page():
             st.error("Please enter your Prolific ID.")
             return
 
+        records = _load_sheet_records()
+        if records is None:
+            st.error("We could not check current study quotas. Please wait a moment and try again.")
+            render_debug_box()
+            return
+
         st.session_state.prolific_id = pid_clean
+        status = _participant_status(pid_clean, records)
+
+        if status["completed_condition"]:
+            st.session_state.assigned_condition = status["completed_condition"]
+            apply_condition_config()
+            st.session_state.stage = "done"
+            st.session_state.scroll_top_next = True
+            st.rerun()
+
+        if status["assigned_condition"]:
+            st.session_state.assigned_condition = status["assigned_condition"]
+            apply_condition_config()
+            log_event(
+                "session_start",
+                payload={
+                    "pid": pid_clean,
+                    "session_id": st.session_state.session_id,
+                    "assignment_source": "existing_condition_assigned",
+                },
+            )
+            st.session_state.stage = "practice"
+            st.session_state.scroll_top_next = True
+            st.rerun()
+
+        assignment = _choose_condition(records)
+        if assignment is None:
+            st.session_state.stage = "quota_full"
+            st.session_state.scroll_top_next = True
+            st.rerun()
+
+        st.session_state.assigned_condition = assignment["condition"]
+        apply_condition_config()
         log_event("session_start", payload={"pid": pid_clean, "session_id": st.session_state.session_id})
+        log_event(
+            "condition_assigned",
+            title=assignment["condition"],
+            payload={
+                "method": assignment["method"],
+                "completed_counts": assignment["counts"],
+                "condition_limits": assignment["limits"],
+                "available_conditions": assignment["available"],
+            },
+        )
         st.session_state.stage = "practice"
         st.session_state.scroll_top_next = True
         st.rerun()
@@ -878,28 +1112,28 @@ LIKERT_1_7 = [1, 2, 3, 4, 5, 6, 7]
 
 ESS_ITEMS = [
     "Online, I would pay attention to this thread.",
-    "Online, I would like to say things to make him feel good.",
-    "Online, I would like to leave him positive comments.",
-    "Online, I would like to show my care about him.",
+    f"Online, I would like to say things to make {PRONOUN_OBJECT} feel good.",
+    f"Online, I would like to leave {PRONOUN_OBJECT} positive comments.",
+    f"Online, I would like to show my care about {PRONOUN_OBJECT}.",
     "Online, I would like to show my interests in this post.",
-    "Online, I would like to show support to him.",
-    "Online, I would like to give him likes, favorites, upvotes, views, etc.",
-    "Online, I would like to encourage him.",
-    "Online, I would like to tell him I like the things he says or does.",
-    "Online, I would like to make him feel good about himself.",
+    f"Online, I would like to show support to {PRONOUN_OBJECT}.",
+    f"Online, I would like to give {PRONOUN_OBJECT} likes, favorites, upvotes, views, etc.",
+    f"Online, I would like to encourage {PRONOUN_OBJECT}.",
+    f"Online, I would like to tell {PRONOUN_OBJECT} I like the things {PRONOUN_SUBJECT} says or does.",
+    f"Online, I would like to make {PRONOUN_OBJECT} feel good about {PRONOUN_REFLEXIVE}.",
 ]
 
 ISS_ITEMS = [
-    "Online, I would like to provide him with helpful information.",
-    "Online, I would like to help him by saying what I would do.",
-    "Online, I would tell him where to find help.",
-    "Online, I would like to offer suggestions to him.",
-    "Online, I would like to tell him things he want to know.",
-    "Online, I would like to help him understand his situation better.",
-    "Online, I would like to share my point of view with him.",
-    "Online, I would like to help him see things in new ways.",
-    "Online, I would like to give him useful advice.",
-    "Online, I would like to help him by saying what he would do.",
+    f"Online, I would like to provide {PRONOUN_OBJECT} with helpful information.",
+    f"Online, I would like to help {PRONOUN_OBJECT} by saying what I would do.",
+    f"Online, I would tell {PRONOUN_OBJECT} where to find help.",
+    f"Online, I would like to offer suggestions to {PRONOUN_OBJECT}.",
+    f"Online, I would like to tell {PRONOUN_OBJECT} things {PRONOUN_SUBJECT} want to know.",
+    f"Online, I would like to help {PRONOUN_OBJECT} understand {PRONOUN_POSSESSIVE} situation better.",
+    f"Online, I would like to share my point of view with {PRONOUN_OBJECT}.",
+    f"Online, I would like to help {PRONOUN_OBJECT} see things in new ways.",
+    f"Online, I would like to give {PRONOUN_OBJECT} useful advice.",
+    f"Online, I would like to help {PRONOUN_OBJECT} by saying what {PRONOUN_SUBJECT} would do.",
 ]
 
 
@@ -975,8 +1209,6 @@ def survey_page():
         st.caption("Please answer all questions on this page to continue.")
 
         with st.form("survey_p2", clear_on_submit=False):
-            # mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
-            #                     horizontal=True)
             mc_gender = st.radio(
                 "Based on the entrepreneur's post, what gender do you perceive the entrepreneur to be?",
                 ["Female", "Unsure", "Male"],
@@ -1191,8 +1423,22 @@ def done_page():
     render_banner()
     st.title("Finished")
     st.success("Thanks — your responses have been recorded.")
-    st.caption("You may now close this tab.")
+    completion_url = get_completion_url()
+    if completion_url:
+        if not st.session_state.get("_completion_link_shown_logged"):
+            log_event("completion_link_shown", payload={"completion_url": completion_url})
+            st.session_state["_completion_link_shown_logged"] = True
+        st.link_button("Click here to complete", completion_url)
+    else:
+        st.info("No Prolific completion URL is configured. You may now close this tab.")
     # render_debug_box()
+
+
+def quota_full_page():
+    render_banner()
+    st.title("Study full")
+    st.warning("This study has reached its current condition quotas. Please return this study on Prolific.")
+    st.caption("No completion link is shown because the study was not completed.")
 
 
 def failed_attention_page():
@@ -1218,6 +1464,9 @@ def main():
         return
     if stage == "failed_attention":
         failed_attention_page()
+        return
+    if stage == "quota_full":
+        quota_full_page()
         return
     if stage == "pid":
         pid_page();
