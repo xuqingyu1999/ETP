@@ -276,12 +276,38 @@ def _append_local(row: List[Any]) -> None:
 
 
 def save_to_gsheet(row: List[Any]) -> None:
+    last_error = None
+    for attempt in range(3):
+        try:
+            ws = _get_sheet1()
+            ws.append_row(row, value_input_option="RAW")
+            st.session_state.pop("_gsheet_error", None)
+            return
+        except Exception as e:
+            last_error = e
+            st.session_state["_gsheet_error"] = (
+                f"GSheet write attempt {attempt + 1}/3 failed: {e}"
+            )
+            if attempt < 2:
+                time.sleep(0.5 * (2 ** attempt))
+
     try:
-        ws = _get_sheet1()
-        ws.append_row(row, value_input_option="RAW")
-    except Exception:
-        # Don't crash the experiment in production—fallback local
         _append_local(row)
+        st.session_state["_gsheet_error"] = (
+            f"GSheet write failed after 3 attempts; saved to local fallback: {last_error}"
+        )
+    except Exception as e:
+        st.session_state["_gsheet_error"] = (
+            f"GSheet write failed after 3 attempts; local fallback also failed: {e}"
+        )
+
+
+def get_completion_url() -> Optional[str]:
+    try:
+        url = st.secrets.get("COMPLETION_URL_STUDY2", None)
+    except Exception:
+        url = None
+    return url or os.getenv("COMPLETION_URL_STUDY2")
 
 
 def log_event(event_type: str, title: str = "", payload: Optional[Dict[str, Any]] = None) -> None:
@@ -1416,7 +1442,14 @@ def done_page():
     render_banner()
     st.title("Finished")
     st.success("Thanks — your responses have been recorded.")
-    st.caption("You may now close this tab.")
+    completion_url = get_completion_url()
+    if completion_url:
+        if not st.session_state.get("_completion_link_shown_logged"):
+            log_event("completion_link_shown", payload={"completion_url": completion_url})
+            st.session_state["_completion_link_shown_logged"] = True
+        st.link_button("Click here to complete", completion_url)
+    else:
+        st.info("No Prolific completion URL is configured. You may now close this tab.")
 
 
 # =============================================================================
