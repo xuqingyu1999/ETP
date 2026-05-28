@@ -125,7 +125,6 @@ def _is_blank(x):
 # ===== New scales (1–7) =====
 IDENTITY_THREAT_ITEMS = [
     "This post makes me feel that there is a negative value attached to my identity as an entrepreneur.",
-    "This post makes me feel that being an entrepreneur is viewed less positively.",
     "This interaction makes me feel that the value of my entrepreneurial identity is being diminished.",
     "This interaction makes me feel that others might see my entrepreneurial identity as less legitimate.",
 ]
@@ -133,14 +132,11 @@ IDENTITY_THREAT_ITEMS = [
 IDENTITY_VERIFICATION_ITEMS = [
     "This post makes me feel more confident in my identity as an entrepreneur.",
     "This interaction strengthens my sense of value in my role as an entrepreneur.",
-    "After this interaction, I feel my entrepreneurial identity is positively reinforced.",
     "This post makes me feel recognized as a legitimate business owner.",
 ]
 
 ENTREPRENEUR_ID_SALIENCE_ITEMS = [
     "Being an entrepreneur is an important part of who I am.",
-    "I would feel a great sense of loss if I were forced to give up my entrepreneurial role.",
-    "I have very clear feelings about being an entrepreneur.",
     "For me, being an entrepreneur is more than just a job; it is a vital part of my life.",
     "I strongly identify with being an entrepreneur.",
 ]
@@ -148,9 +144,7 @@ ENTREPRENEUR_ID_SALIENCE_ITEMS = [
 GENDER_ID_SALIENCE_ITEMS = [
     "I would feel like a significant part of me was missing if I could no longer identify with my gender.",
     "My gender is an important part of my overall sense of self.",
-    "I have a very clear and defined sense of what my gender means to me.",
     "My gender is a vital lens through which I experience and navigate my life.",
-    "I feel a strong sense of connection to the shared experiences associated with my gender.",
 ]
 
 
@@ -875,29 +869,15 @@ def likert7(question: str, key: str) -> Optional[int]:
 LIKERT_1_7 = [1, 2, 3, 4, 5, 6, 7]
 
 ESS_ITEMS = [
-    "Online, I would pay attention to this thread.",
-    "Online, I would like to say things to make him feel good.",
     "Online, I would like to leave him positive comments.",
     "Online, I would like to show my care about him.",
-    "Online, I would like to show my interests in this post.",
-    "Online, I would like to show support to him.",
-    "Online, I would like to give him likes, favorites, upvotes, views, etc.",
     "Online, I would like to encourage him.",
-    "Online, I would like to tell him I like the things he says or does.",
-    "Online, I would like to make him feel good about himself.",
 ]
 
 ISS_ITEMS = [
     "Online, I would like to provide him with helpful information.",
-    "Online, I would like to help him by saying what I would do.",
-    "Online, I would tell him where to find help.",
     "Online, I would like to offer suggestions to him.",
-    "Online, I would like to tell him things he want to know.",
     "Online, I would like to help him understand his situation better.",
-    "Online, I would like to share my point of view with him.",
-    "Online, I would like to help him see things in new ways.",
-    "Online, I would like to give him useful advice.",
-    "Online, I would like to help him by saying what he would do.",
 ]
 
 
@@ -1027,10 +1007,9 @@ def survey_page():
     st.caption("Scale: 1 = Strongly disagree, 7 = Strongly agree")
 
     with st.form("survey_p3", clear_on_submit=False):
-        # Identity Threat (PIT1–PIT4)
+        # Identity Threat (PIT1-PIT3)
         pit_items = [
             "This post makes me feel that there is a negative value attached to my identity as an entrepreneur.",
-            "This post makes me feel that being an entrepreneur is viewed less positively.",
             "This interaction makes me feel that the value of my entrepreneurial identity is being diminished.",
             "This interaction makes me feel that others might see my entrepreneurial identity as less legitimate.",
         ]
@@ -1041,11 +1020,10 @@ def survey_page():
 
         st.divider()
 
-        # Identity Verification (PIV1–PIV4)
+        # Identity Verification (PIV1-PIV3)
         piv_items = [
             "This post makes me feel more confident in my identity as an entrepreneur.",
             "This interaction strengthens my sense of value in my role as an entrepreneur.",
-            "After this interaction, I feel my entrepreneurial identity is positively reinforced.",
             "This post makes me feel recognized as a legitimate business owner.",
         ]
         piv_vals = {}
@@ -1055,11 +1033,9 @@ def survey_page():
 
         st.divider()
 
-        # Entrepreneur identity salience (ES1–ES5)
+        # Entrepreneur identity salience (ES1-ES3)
         es_items = [
             "Being an entrepreneur is an important part of who I am.",
-            "I would feel a great sense of loss if I were forced to give up my entrepreneurial role.",
-            "I have very clear feelings about being an entrepreneur.",
             "For me, being an entrepreneur is more than just a job; it is a vital part of my life.",
             "I strongly identify with being an entrepreneur.",
         ]
@@ -1070,13 +1046,11 @@ def survey_page():
 
         st.divider()
 
-        # Gender identity salience (GS1–GS5)
+        # Gender identity salience (GS1-GS3)
         gs_items = [
             "I would feel like a significant part of me was missing if I could no longer identify with my gender.",
             "My gender is an important part of my overall sense of self.",
-            "I have a very clear and defined sense of what my gender means to me.",
             "My gender is a vital lens through which I experience and navigate my life.",
-            "I feel a strong sense of connection to the shared experiences associated with my gender.",
         ]
         gs_vals = {}
         for i, item in enumerate(gs_items, start=1):
