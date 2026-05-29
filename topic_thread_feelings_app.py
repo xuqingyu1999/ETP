@@ -1357,7 +1357,7 @@ def survey_step2():
         )
         work_years = st.selectbox(
             "How many years of work experience do you have?",
-            list(range(0, 51)),
+            list(range(0, 51)) + [">50"],
             index=None,
             placeholder="Select…",
             key="work_years",
@@ -1383,9 +1383,8 @@ def survey_step2():
         st.error("Please complete all required questions: " + ", ".join(missing_fields))
         return
 
-    # Cast numeric fields; entrepreneurial years may be the string ">50".
+    # Cast numeric fields; experience fields may be the string ">50".
     by = int(birth_year)
-    wy = int(work_years)
 
     # Store page2
     st.session_state.survey_answers["page2"] = {
@@ -1394,7 +1393,7 @@ def survey_step2():
         "gender": gender,
         "education": education,
         "entrepreneurial_years": ent_years,
-        "work_years": wy,
+        "work_years": work_years,
     }
 
     # Evaluate manipulation check correctness vs assigned category
@@ -1414,7 +1413,7 @@ def survey_step2():
             "gender": gender,
             "education": education,
             "entrepreneurial_years": ent_years,
-            "work_years": wy,
+            "work_years": work_years,
         },
     )
 
