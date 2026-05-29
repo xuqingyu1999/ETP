@@ -1122,7 +1122,7 @@ def survey_page():
         )
         work_years = st.selectbox(
             "How many years of work experience do you have?",
-            list(range(0, 51)),
+            list(range(0, 51)) + [">50"],
             index=None,
             placeholder="Select…",
             key="work_years",
