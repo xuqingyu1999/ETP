@@ -210,6 +210,22 @@ def get_credentials_from_secrets():
     return creds_dict
 
 
+def _secret_or_env(name: str, default: Optional[str] = None) -> Optional[str]:
+    try:
+        value = st.secrets.get(name, None)
+    except Exception:
+        value = None
+    return value or os.getenv(name) or default
+
+
+def get_prolific_reward() -> Optional[str]:
+    reward = _secret_or_env("PROLIFIC_REWARD_STUDY1")
+    if reward is None:
+        return None
+    reward = str(reward).strip()
+    return reward or None
+
+
 @st.cache_resource(show_spinner=False)
 def _get_sheet1():
     """Connect once and keep the handle."""
@@ -458,8 +474,14 @@ def render_debug_box():
 
 def render_consent_page():
     st.title("Study Information and Consent")
+    reward = get_prolific_reward()
+    reward_sentence = (
+        f"You will receive **{reward}** for completing the study."
+        if reward
+        else "You will receive compensation **as described on Prolific** for completing the study."
+    )
 
-    st.markdown("""
+    st.markdown(f"""
     **Study Overview and Consent**
 
     You are invited to participate in a research study about **how entrepreneurs interact on social media**.
@@ -476,7 +498,7 @@ def render_consent_page():
     De-identified data may be shared with other researchers for academic purposes.
 
     There are **no known risks** associated with this study and no direct benefits to you.
-    You will receive **$0.50** for completing the study.
+    {reward_sentence}
 
     For scientific reasons, full details about the research purpose cannot be provided at this time.
     You will be **fully debriefed** after completing the study.
@@ -1062,7 +1084,7 @@ def survey_page():
         # Demographics (required)
         birth_year = st.selectbox(
             "What is your birth year?",
-            list(range(1960, 2009)),
+            list(range(1946, 2009)),
             index=None,
             placeholder="Select…",
             key="birth_year",
@@ -1089,7 +1111,7 @@ def survey_page():
         )
         ent_years = st.selectbox(
             "How many years of entrepreneurial experience do you have?",
-            list(range(0, 51)),
+            list(range(0, 51)) + [">50"],
             index=None,
             placeholder="Select…",
             key="ent_years",
