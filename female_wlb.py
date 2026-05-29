@@ -1,5 +1,5 @@
-# file: female_wlb.py
-# Female WLB condition (single-app version) — matches Female BD flow & survey
+# file: male_wlb.py
+# Male WLB condition (single-app version) — matches Female BD flow & survey
 #
 # What you asked for in the latest message:
 #   ✅ One Google Sheet (sheet1) for everything
@@ -43,26 +43,26 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 
 # =============================================================================
-# EXPERIMENT SETTINGS (Female WLB)
+# EXPERIMENT SETTINGS (Male WLB)
 # =============================================================================
-CONDITION = "F_WLB"
+CONDITION = "M_WLB"
 
 SUBREDDIT = "r/business"
 DAYS_AGO = 7
-AUTHOR_USERNAME = "LunarMarten21"
-POSTED_BY_NAME = "Maria"
+AUTHOR_USERNAME = "IronBadger87"
+POSTED_BY_NAME = "David"
 
-POST_TITLE = "My husband told me this on my birthday (yesterday) and I think – I need to improve my work-life balance."
+POST_TITLE = "My wife told me this on my birthday (yesterday) and I think – I need to improve my work-life balance."
 POST_BODY_MD = """
-My husband told me this on my birthday (yesterday) and I think – I need to improve my work-life balance. A little bit of context. My husband and son had each bought presents for me about 2 weeks prior to my birthday and placed it around my home office. I use the office daily and did not even notice the gifts. Looking back now, they tried hinting and drawing my attention to the presents but as you guys know I was blinded by work.
+My wife told me this on my birthday (yesterday) and I think – I need to improve my work-life balance. A little bit of context. My wife and son had each bought presents for me about 2 weeks prior to my birthday and placed it around my home office. I use the office daily and did not even notice the gifts. Looking back now, they tried hinting and drawing my attention to the presents but as you guys know I was blinded by work. 
 
-My son got tired of the cat and mouse game and pointed the gifts out on my birthday. While opening the gift, my husband said you are chasing the things you want and fail to enjoy the things you have. He is right (he always is :) The funny part is that the gift he offered me was going to be my December bonus for achieving my quarterly goals.
+My son got tired of the cat and mouse game and pointed the gifts out on my birthday. While opening the gift, my wife said you are chasing the things you want and fail to enjoy the things you have. She is right (she always is :) The funny part is that the gift she offered me was going to be my December bonus for achieving my quarterly goals. 
 
-Lesson learned: over the next year I want to structure some time to enjoy what I have. Starting with looking around my home office every time I use it. I don’t want to miss an early bonus again. :) My birthday wish for all of us is to find the balance between chasing our goals and enjoying the ones we have already achieved.
+Lesson learned: over the next year I want to structure some time to enjoy what I have. Starting with looking around my home office every time I use it. I don’t want to miss an early bonus again. :) My birthday wish for all of us is to find the balance between chasing our goals and enjoying the ones we have already achieved
 """.strip()
 
 TOPIC_LABEL = "work-life balance difficulties"
-PRONOUN_POSSESSIVE = "her"
+PRONOUN_POSSESSIVE = "his"
 DEFAULT_SCORE = 5
 
 # --- logging controls (reduce "too many logs") ---
@@ -86,7 +86,7 @@ ONLINE_SCALE = ["Never", "Rarely", "Sometimes", "Often", "Always"]
 # =============================================================================
 # STREAMLIT PAGE CONFIG
 # =============================================================================
-st.set_page_config(page_title="Reddit-style Study (F_WLB)", page_icon="🧪", layout="centered")
+st.set_page_config(page_title="Reddit-style Study (M_WLB)", page_icon="🧪", layout="centered")
 
 st.markdown(
     """
@@ -325,7 +325,7 @@ def save_to_gsheet(data):
             )
             client = gspread.authorize(creds)
 
-            sheet = client.open("ETP-FEMALE-WLB").sheet1
+            sheet = client.open("ETP-MALE-WLB").sheet1
             sheet.append_row(row)
             st.session_state.pop("_gsheet_error", None)
             return
@@ -370,7 +370,7 @@ def log_event(event_type: str, *, title: str = "", payload: Optional[Dict[str, A
 # =============================================================================
 APP_DIR = Path(__file__).parent
 REDDIT_LOGO_PATH = APP_DIR / "reddit_logo.png"
-AVATAR_PATH = APP_DIR / "f_avatar.png"
+AVATAR_PATH = APP_DIR / "m_avatar.png"
 
 
 def render_banner():
@@ -507,11 +507,6 @@ def render_consent_page():
     """)
 
     agree = st.checkbox("I am at least 18 years old and I agree to participate in this study.")
-
-    st.session_state.setdefault("instr_start_ts", time.time())
-
-    # elapsed = int(time.time() - st.session_state.instr_start_ts)
-    # remaining = max(0, MIN_SECONDS - elapsed)
 
     st.session_state.setdefault("instr_start_ts", time.time())
     elapsed = int(time.time() - st.session_state.instr_start_ts)
@@ -896,15 +891,15 @@ def likert7(question: str, key: str) -> Optional[int]:
 LIKERT_1_7 = [1, 2, 3, 4, 5, 6, 7]
 
 ESS_ITEMS = [
-    "Online, I would like to leave her positive comments.",
-    "Online, I would like to show my care about her.",
-    "Online, I would like to encourage her.",
+    "Online, I would like to leave him positive comments.",
+    "Online, I would like to show my care about him.",
+    "Online, I would like to encourage him.",
 ]
 
 ISS_ITEMS = [
-    "Online, I would like to provide her with helpful information.",
-    "Online, I would like to offer suggestions to her.",
-    "Online, I would like to help her understand her situation better.",
+    "Online, I would like to provide him with helpful information.",
+    "Online, I would like to offer suggestions to him.",
+    "Online, I would like to help him understand his situation better.",
 ]
 
 
@@ -980,8 +975,6 @@ def survey_page():
         st.caption("Please answer all questions on this page to continue.")
 
         with st.form("survey_p2", clear_on_submit=False):
-            # mc_gender = st.radio("The entrepreneur in the post was:", ["Female", "Male"], index=None,
-            #                      horizontal=True)
             mc_gender = st.radio(
                 "Based on the entrepreneur's post, what gender do you perceive the entrepreneur to be?",
                 ["Female", "Unsure", "Male"],
@@ -1125,7 +1118,7 @@ def survey_page():
         )
         work_years = st.selectbox(
             "How many years of work experience do you have?",
-            list(range(0, 51)),
+            list(range(0, 51)) + [">50"],
             index=None,
             placeholder="Select…",
             key="work_years",
