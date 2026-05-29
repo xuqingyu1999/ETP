@@ -302,12 +302,24 @@ def save_to_gsheet(row: List[Any]) -> None:
         )
 
 
-def get_completion_url() -> Optional[str]:
+def _secret_or_env(name: str, default: Optional[str] = None) -> Optional[str]:
     try:
-        url = st.secrets.get("COMPLETION_URL_STUDY2", None)
+        value = st.secrets.get(name, None)
     except Exception:
-        url = None
-    return url or os.getenv("COMPLETION_URL_STUDY2")
+        value = None
+    return value or os.getenv(name) or default
+
+
+def get_completion_url() -> Optional[str]:
+    return _secret_or_env("COMPLETION_URL_STUDY2")
+
+
+def get_prolific_reward() -> Optional[str]:
+    reward = _secret_or_env("PROLIFIC_REWARD_STUDY2")
+    if reward is None:
+        return None
+    reward = str(reward).strip()
+    return reward or None
 
 
 def log_event(event_type: str, title: str = "", payload: Optional[Dict[str, Any]] = None) -> None:
@@ -828,9 +840,15 @@ def blank(x: Any) -> bool:
 # =============================================================================
 def consent_page():
     st.title("Study Information and Consent")
+    reward = get_prolific_reward()
+    reward_sentence = (
+        f"You will receive **{reward}** for completing the study."
+        if reward
+        else "You will receive compensation **as described on Prolific** for completing the study."
+    )
 
     st.markdown(
-        """
+        f"""
 **Study Overview and Consent**
 
 You are invited to participate in a research study about **how entrepreneurs interact on social media**.
@@ -849,7 +867,7 @@ All responses are **anonymous**, and no identifying information will be collecte
 De-identified data may be shared with other researchers for academic purposes.
 
 There are **no known risks** associated with this study and no direct benefits to you.
-You will receive compensation **as described on Prolific** for completing the study.
+{reward_sentence}
 
 For scientific reasons, full details about the research purpose cannot be provided at this time.
 You will be **fully debriefed** after completing the study.
@@ -1305,7 +1323,7 @@ def survey_step2():
 
         birth_year = st.selectbox(
             "What is your birth year?",
-            list(range(1960, 2009)),
+            list(range(1946, 2009)),
             index=None,
             placeholder="Select…",
             key="birth_year",
@@ -1332,7 +1350,7 @@ def survey_step2():
         )
         ent_years = st.selectbox(
             "How many years of entrepreneurial experience do you have?",
-            list(range(0, 51)),
+            list(range(0, 51)) + [">50"],
             index=None,
             placeholder="Select…",
             key="ent_years",
@@ -1365,9 +1383,8 @@ def survey_step2():
         st.error("Please complete all required questions: " + ", ".join(missing_fields))
         return
 
-    # Cast (selectboxes already constrain the range, but keep explicit ints for logging)
+    # Cast numeric fields; entrepreneurial years may be the string ">50".
     by = int(birth_year)
-    ey = int(ent_years)
     wy = int(work_years)
 
     # Store page2
@@ -1376,7 +1393,7 @@ def survey_step2():
         "birth_year": by,
         "gender": gender,
         "education": education,
-        "entrepreneurial_years": ey,
+        "entrepreneurial_years": ent_years,
         "work_years": wy,
     }
 
@@ -1396,7 +1413,7 @@ def survey_step2():
             "birth_year": by,
             "gender": gender,
             "education": education,
-            "entrepreneurial_years": ey,
+            "entrepreneurial_years": ent_years,
             "work_years": wy,
         },
     )
